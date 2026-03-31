@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the application.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The user's full name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "role": { "type": "string", "enum": ["Admin", "HR", "Team Lead", "Employee"], "description": "The user's role." },
+        "teamIds": { "type": "array", "items": { "type": "string" }, "description": "IDs of teams the user belongs to." },
+        "managerId": { "type": "string", "description": "ID of the user's manager." },
+        "avatar": { "type": "string", "description": "URL to the user's avatar image." },
+        "status": { "type": "string", "enum": ["Active", "Inactive"], "description": "The user's employment status." },
+        "joiningDate": { "type": "string", "format": "date", "description": "The user's joining date." },
+        "internshipDate": { "type": "string", "format": "date", "description": "The user's internship start date." },
+        "conversionDate": { "type": "string", "format": "date", "description": "The user's conversion to full-time date." }
+      },
+      "required": ["name", "email", "role", "teamIds", "avatar", "status"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "A team within the organization.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The team's name." },
+        "managerIds": { "type": "array", "items": { "type": "string" }, "description": "IDs of the team's managers." },
+        "description": { "type": "string", "description": "A description of the team." },
+        "coverImage": { "type": "string", "description": "URL to the team's cover image." }
+      },
+      "required": ["name", "managerIds", "description", "coverImage"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "A request for time off.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the user requesting leave." },
+        "startDate": { "type": "string", "format": "date", "description": "Start date of the leave." },
+        "endDate": { "type": "string", "format": "date", "description": "End date of the leave." },
+        "type": { "type": "string", "description": "Type of leave (e.g., Vacation, Sick)." },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Rejected"], "description": "Status of the request." },
+        "reason": { "type": "string", "description": "Reason for the leave." }
+      },
+      "required": ["userId", "startDate", "endDate", "type", "status", "reason"]
+    },
+    "Holiday": {
+      "title": "Holiday",
+      "description": "A public holiday.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "Date of the holiday." },
+        "name": { "type": "string", "description": "Name of the holiday." }
+      },
+      "required": ["date", "name"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "defaultLeaveQuota": { "type": "number", "description": "Default number of leave days per year." }
+      },
+      "required": ["defaultLeaveQuota"]
+    },
+    "DocumentItem": {
+      "title": "DocumentItem",
+      "description": "A document or link.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the document." },
+        "url": { "type": "string", "description": "URL of the document." },
+        "description": { "type": "string", "description": "Description of the document." },
+        "addedBy": { "type": "string", "description": "Name of the user who added the document." }
+      },
+      "required": ["title", "url", "description", "addedBy"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles."
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Stores teams."
+    },
+    "/leaves/{leaveId}": {
+      "schema": "LeaveRequest",
+      "description": "Stores leave requests."
+    },
+    "/holidays/{holidayId}": {
+      "schema": "Holiday",
+      "description": "Stores public holidays."
+    },
+    "/settings/global": {
+      "schema": "AppSettings",
+      "description": "Stores global application settings."
+    },
+    "/documents/{documentId}": {
+      "schema": "DocumentItem",
+      "description": "Stores documents and links."
+    }
+  }
+}

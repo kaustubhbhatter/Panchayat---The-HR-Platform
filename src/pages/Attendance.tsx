@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ export const Attendance = () => {
   
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   // Apply leave state
   const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '' });
@@ -19,9 +20,10 @@ export const Attendance = () => {
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
                     user?.role === 'Admin' || user?.role === 'HR';
   
-  const myLeaves = leaves.filter(l => l.userId === user?.id);
+  const myLeaves = leaves.filter(l => l.userId === user?.id && new Date(l.startDate).getFullYear() === selectedYear);
   const pendingRequests = leaves.filter(l => {
     if (l.status !== 'Pending') return false;
+    if (new Date(l.startDate).getFullYear() !== selectedYear) return false;
     if (user?.role === 'Admin' || user?.role === 'HR') return true;
     const requestor = users.find(u => u.id === l.userId);
     if (!requestor) return false;
@@ -62,13 +64,11 @@ export const Attendance = () => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const blanks = Array.from({ length: firstDay }, (_, i) => i);
 
-  const isHoliday = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const isHoliday = (dateStr: string) => {
     return holidays.some(h => h.date === dateStr);
   };
   
-  const isWeekend = (day: number) => {
-    const date = new Date(year, month, day);
+  const isWeekend = (date: Date) => {
     return date.getDay() === 0 || date.getDay() === 6;
   };
 
@@ -80,47 +80,73 @@ export const Attendance = () => {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
 
-  const approvedLeavesDays = myLeaves
-    .filter(l => l.status === 'Approved')
-    .reduce((total, l) => {
-      const start = new Date(l.startDate);
-      const end = new Date(l.endDate);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return total + diffDays;
-    }, 0);
+  // Calculate working days between two dates
+  const calculateWorkingDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let workingDays = 0;
+    
+    let current = new Date(start);
+    while (current <= end) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      if (!isWeekend(current) && !isHoliday(dateStr)) {
+        workingDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return workingDays;
+  };
+
+  const approvedLeavesDays = useMemo(() => {
+    return myLeaves
+      .filter(l => l.status === 'Approved')
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
+  }, [myLeaves, holidays]);
+
+  const availableYears = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Attendance & Leaves</h2>
           <p className="text-slate-500">Manage your time off and view team availability.</p>
         </div>
-        <div className="flex gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-          <button
-            onClick={() => setActiveTab('my-leaves')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'my-leaves' ? 'bg-violet-100 text-violet-700' : 'text-slate-600 hover:bg-slate-50'}`}
+        <div className="flex items-center gap-4">
+          <select 
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
           >
-            My Leaves
-          </button>
-          <button
-            onClick={() => setActiveTab('apply')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'apply' ? 'bg-violet-100 text-violet-700' : 'text-slate-600 hover:bg-slate-50'}`}
-          >
-            Apply Leave
-          </button>
-          {isManager && (
+            {availableYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <div className="flex gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
             <button
-              onClick={() => setActiveTab('requests')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'requests' ? 'bg-violet-100 text-violet-700' : 'text-slate-600 hover:bg-slate-50'}`}
+              onClick={() => setActiveTab('my-leaves')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'my-leaves' ? 'bg-violet-100 text-violet-700' : 'text-slate-600 hover:bg-slate-50'}`}
             >
-              Requests
-              {pendingRequests.length > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingRequests.length}</span>
-              )}
+              My Leaves
             </button>
-          )}
+            <button
+              onClick={() => setActiveTab('apply')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'apply' ? 'bg-violet-100 text-violet-700' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              Apply Leave
+            </button>
+            {isManager && (
+              <button
+                onClick={() => setActiveTab('requests')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'requests' ? 'bg-violet-100 text-violet-700' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                Requests
+                {pendingRequests.length > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingRequests.length}</span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -128,7 +154,7 @@ export const Attendance = () => {
         {/* Left Column: Calendar & Stats */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Leave Balance</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Leave Balance ({selectedYear})</h3>
             <div className="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
               <div>
                 <p className="text-sm text-violet-600 font-medium">Available</p>
@@ -159,8 +185,9 @@ export const Attendance = () => {
               <div className="grid grid-cols-7 gap-1">
                 {blanks.map(b => <div key={`blank-${b}`} className="h-8"></div>)}
                 {days.map(d => {
-                  const holiday = isHoliday(d);
-                  const weekend = isWeekend(d);
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                  const holiday = isHoliday(dateStr);
+                  const weekend = isWeekend(new Date(year, month, d));
                   return (
                     <div 
                       key={d} 
@@ -186,11 +213,11 @@ export const Attendance = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           {activeTab === 'my-leaves' && (
             <div>
-              <h3 className="text-lg font-bold text-slate-800 mb-6">Leave History</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-6">Leave History ({selectedYear})</h3>
               <div className="space-y-4">
                 {myLeaves.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 border border-dashed border-slate-200 rounded-xl">
-                    No leaves requested yet.
+                    No leaves requested in {selectedYear}.
                   </div>
                 ) : (
                   myLeaves.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()).map(leave => (
@@ -206,6 +233,7 @@ export const Attendance = () => {
                           <p className="font-bold text-slate-800">{leave.type}</p>
                           <p className="text-sm text-slate-500">
                             {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                            <span className="ml-2 text-xs text-slate-400">({calculateWorkingDays(leave.startDate, leave.endDate)} days)</span>
                           </p>
                         </div>
                       </div>
@@ -263,6 +291,11 @@ export const Attendance = () => {
                     />
                   </div>
                 </div>
+                {newLeave.startDate && newLeave.endDate && (
+                  <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    This request is for <span className="font-bold">{calculateWorkingDays(newLeave.startDate, newLeave.endDate)}</span> working days.
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
                   <textarea
@@ -285,11 +318,11 @@ export const Attendance = () => {
 
           {activeTab === 'requests' && isManager && (
             <div>
-              <h3 className="text-lg font-bold text-slate-800 mb-6">Leave Center</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-6">Leave Center ({selectedYear})</h3>
               <div className="space-y-4">
                 {pendingRequests.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 border border-dashed border-slate-200 rounded-xl">
-                    No pending leave requests to review.
+                    No pending leave requests to review for {selectedYear}.
                   </div>
                 ) : (
                   pendingRequests.map(leave => {
@@ -301,7 +334,7 @@ export const Attendance = () => {
                             <img src={requestor?.avatar} alt="" className="w-10 h-10 rounded-full" />
                             <div>
                               <p className="font-bold text-slate-800">{requestor?.name}</p>
-                              <p className="text-sm text-slate-500">{leave.type} • {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()}</p>
+                              <p className="text-sm text-slate-500">{leave.type} • {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()} ({calculateWorkingDays(leave.startDate, leave.endDate)} days)</p>
                             </div>
                           </div>
                           <div className="flex gap-2">

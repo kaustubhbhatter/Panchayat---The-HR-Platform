@@ -1,0 +1,166 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdminOrHR() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'HR'] ||
+        (request.auth.token.email == "bhatter.kaustubh@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isManagerOf(userId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(userId)).data;
+      return isAuthenticated() && userDoc.managerId == request.auth.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !('field' in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser() {
+      let data = request.resource.data;
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['Admin', 'HR', 'Team Lead', 'Employee'] &&
+             data.teamIds is list && data.teamIds.size() <= 20 &&
+             data.avatar is string && data.avatar.size() <= 1000 &&
+             data.status in ['Active', 'Inactive'] &&
+             (!('managerId' in data) || (data.managerId is string && data.managerId.size() <= 100)) &&
+             (!('joiningDate' in data) || (data.joiningDate is string && data.joiningDate.size() <= 50)) &&
+             (!('internshipDate' in data) || (data.internshipDate is string && data.internshipDate.size() <= 50)) &&
+             (!('conversionDate' in data) || (data.conversionDate is string && data.conversionDate.size() <= 50));
+    }
+
+    function isValidTeam() {
+      let data = request.resource.data;
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.managerIds is list && data.managerIds.size() <= 50 &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.coverImage is string && data.coverImage.size() <= 1000;
+    }
+
+    function isValidLeaveRequest() {
+      let data = request.resource.data;
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.startDate is string && data.startDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.endDate is string && data.endDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.type is string && data.type.size() > 0 && data.type.size() < 50 &&
+             data.status in ['Pending', 'Approved', 'Rejected'] &&
+             data.reason is string && data.reason.size() <= 1000;
+    }
+
+    function isValidHoliday() {
+      let data = request.resource.data;
+      return data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100;
+    }
+
+    function isValidSettings() {
+      let data = request.resource.data;
+      return data.defaultLeaveQuota is number && data.defaultLeaveQuota >= 0 && data.defaultLeaveQuota <= 365;
+    }
+
+    function isValidDocument() {
+      let data = request.resource.data;
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.url is string && data.url.size() > 0 && data.url.size() < 1000 &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.addedBy is string && data.addedBy.size() > 0 && data.addedBy.size() < 100;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHR() && isValidUser();
+      allow update: if isAuthenticated() && isValidUser() && (
+        isAdminOrHR() || 
+        (isOwner(userId) && areImmutableFieldsUnchanged(['role', 'status', 'email']))
+      );
+      allow delete: if isAdminOrHR();
+    }
+
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHR() && isValidTeam();
+      allow update: if isAdminOrHR() && isValidTeam();
+      allow delete: if isAdminOrHR();
+    }
+
+    match /leaves/{leaveId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidLeaveRequest() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidLeaveRequest() && (
+        isAdminOrHR() || 
+        isManagerOf(resource.data.userId) ||
+        (request.resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['status']))
+      );
+      allow delete: if isAuthenticated() && (
+        isAdminOrHR() || 
+        (resource.data.userId == request.auth.uid && resource.data.status == 'Pending')
+      );
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHR() && isValidHoliday();
+      allow update: if isAdminOrHR() && isValidHoliday();
+      allow delete: if isAdminOrHR();
+    }
+
+    match /settings/global {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHR() && isValidSettings();
+      allow update: if isAdminOrHR() && isValidSettings();
+      allow delete: if false; // Settings should not be deleted
+    }
+
+    match /documents/{documentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrHR() && isValidDocument();
+      allow update: if isAdminOrHR() && isValidDocument();
+      allow delete: if isAdminOrHR();
+    }
+  }
+}

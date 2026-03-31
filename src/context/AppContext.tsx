@@ -14,6 +14,10 @@ export interface User {
   teamIds: string[];
   managerId?: string;
   avatar: string;
+  status: 'Active' | 'Inactive';
+  joiningDate?: string;
+  internshipDate?: string;
+  conversionDate?: string;
 }
 
 export interface Team {

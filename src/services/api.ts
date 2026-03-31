@@ -1,5 +1,6 @@
 import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem } from '../context/AppContext';
-import { db, auth } from '../firebase';
+import { db, auth, firebaseConfig, storage } from '../firebase';
+import { initializeApp } from 'firebase/app';
 import { 
   collection, 
   doc, 
@@ -15,8 +16,14 @@ import {
 import { 
   signInWithEmailAndPassword, 
   sendPasswordResetEmail,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  getAuth
 } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+// Initialize a secondary app to create users without logging out the current admin
+const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = getAuth(secondaryApp);
 
 // Helper to handle Firestore errors
 const handleFirestoreError = (error: any, operation: string) => {
@@ -68,18 +75,26 @@ export const api = {
 
   addUser: async (userData: Omit<User, 'id'> & { password?: string }): Promise<User> => {
     try {
-      // In a real app, you'd use a Cloud Function to create the auth user
-      // so the current admin doesn't get logged out. 
-      // For this prototype, we'll just create the Firestore document.
-      // The user will need to use "Forgot Password" to set their initial password
-      // if we don't create the auth account here.
-      
       const { password, ...userProfile } = userData;
       
-      // Create document with auto-generated ID
-      const docRef = await addDoc(collection(db, 'users'), userProfile);
+      let uid: string;
+      if (password) {
+        // Create user in Firebase Auth using the secondary app
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, userProfile.email, password);
+        uid = userCredential.user.uid;
+        // Sign out the secondary app to clear its session
+        await secondaryAuth.signOut();
+      } else {
+        // If no password is provided, we can't create an auth user easily without a backend.
+        // For now, we'll throw an error because Firebase Auth requires a password.
+        throw new Error("Password is required to create a new user.");
+      }
       
-      return { id: docRef.id, ...userProfile } as User;
+      // Create document with the Auth UID
+      const docRef = doc(db, 'users', uid);
+      await setDoc(docRef, userProfile);
+      
+      return { id: uid, ...userProfile } as User;
     } catch (error) {
       return handleFirestoreError(error, 'addUser');
     }
@@ -226,6 +241,18 @@ export const api = {
       await deleteDoc(doc(db, 'documents', id));
     } catch (error) {
       return handleFirestoreError(error, 'deleteDocument');
+    }
+  },
+
+  uploadFile: async (file: File, path: string): Promise<string> => {
+    try {
+      const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (error: any) {
+      console.error('Storage Error:', error);
+      throw new Error(error.message || 'Failed to upload file');
     }
   }
 };

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Save, Trash2, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Save, Trash2, Plus, Copy } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 export const Admin = () => {
   const { settings, updateSettings, holidays, addHoliday, deleteHoliday } = useAppContext();
   const [quota, setQuota] = useState(settings.defaultLeaveQuota.toString());
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const handleSaveSettings = async () => {
     await updateSettings({ ...settings, defaultLeaveQuota: parseInt(quota) || 0 });
@@ -18,6 +19,30 @@ export const Admin = () => {
     await addHoliday(newHoliday);
     setNewHoliday({ date: '', name: '' });
   };
+
+  const handleDuplicateHolidays = async () => {
+    const prevYearHolidays = holidays.filter(h => new Date(h.date).getFullYear() === selectedYear - 1);
+    if (prevYearHolidays.length === 0) {
+      alert(`No holidays found for ${selectedYear - 1} to duplicate.`);
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to duplicate ${prevYearHolidays.length} holidays from ${selectedYear - 1} to ${selectedYear}?`)) {
+      for (const h of prevYearHolidays) {
+        const oldDate = new Date(h.date);
+        const newDateStr = `${selectedYear}-${String(oldDate.getMonth() + 1).padStart(2, '0')}-${String(oldDate.getDate()).padStart(2, '0')}`;
+        
+        // Check if holiday already exists on this date
+        if (!holidays.some(existing => existing.date === newDateStr)) {
+          await addHoliday({ name: h.name, date: newDateStr });
+        }
+      }
+      alert('Holidays duplicated successfully!');
+    }
+  };
+
+  const filteredHolidays = holidays.filter(h => new Date(h.date).getFullYear() === selectedYear);
+  const availableYears = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -52,9 +77,30 @@ export const Admin = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800">Public Holidays</h3>
-          <p className="text-sm text-slate-500 mt-1">Manage company-wide public holidays.</p>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Public Holidays</h3>
+            <p className="text-sm text-slate-500 mt-1">Manage company-wide public holidays.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            >
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleDuplicateHolidays}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+              title={`Duplicate holidays from ${selectedYear - 1}`}
+            >
+              <Copy size={16} />
+              Copy from {selectedYear - 1}
+            </button>
+          </div>
         </div>
         
         <div className="p-6 border-b border-slate-50 bg-slate-50/50">
@@ -91,7 +137,7 @@ export const Admin = () => {
         </div>
 
         <div className="divide-y divide-slate-100">
-          {holidays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(holiday => (
+          {filteredHolidays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(holiday => (
             <div key={holiday.id} className="p-4 px-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
@@ -112,9 +158,9 @@ export const Admin = () => {
               </button>
             </div>
           ))}
-          {holidays.length === 0 && (
+          {filteredHolidays.length === 0 && (
             <div className="p-8 text-center text-slate-500">
-              No public holidays configured yet.
+              No public holidays configured for {selectedYear}.
             </div>
           )}
         </div>
