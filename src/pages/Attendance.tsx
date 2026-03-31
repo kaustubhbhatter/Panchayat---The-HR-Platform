@@ -99,11 +99,22 @@ export const Attendance = () => {
 
   const approvedLeavesDays = useMemo(() => {
     return myLeaves
-      .filter(l => l.status === 'Approved')
+      .filter(l => l.status === 'Approved' && l.type !== 'Work From Home')
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
+  }, [myLeaves, holidays]);
+
+  const approvedWfhDays = useMemo(() => {
+    return myLeaves
+      .filter(l => l.status === 'Approved' && l.type === 'Work From Home')
       .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
   }, [myLeaves, holidays]);
 
   const availableYears = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
+
+  const currentUserData = users.find(u => u.id === user?.id);
+  const creditedLeaves = currentUserData?.creditedLeaves || 0;
+  const totalLeaveQuota = settings.defaultLeaveQuota + creditedLeaves;
+  const totalWfhQuota = settings.defaultWfhQuota || 10;
 
   return (
     <div className="space-y-6">
@@ -155,17 +166,34 @@ export const Attendance = () => {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <h3 className="text-lg font-bold text-slate-800 mb-4">Leave Balance ({selectedYear})</h3>
-            <div className="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
+            <div className="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100 mb-3">
               <div>
                 <p className="text-sm text-violet-600 font-medium">Available</p>
-                <p className="text-3xl font-black text-violet-700">{Math.max(0, settings.defaultLeaveQuota - approvedLeavesDays)}</p>
+                <p className="text-3xl font-black text-violet-700">{Math.max(0, totalLeaveQuota - approvedLeavesDays)}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-slate-500 font-medium">Used</p>
                 <p className="text-xl font-bold text-slate-700">{approvedLeavesDays}</p>
               </div>
             </div>
-            <p className="text-xs text-slate-400 mt-3 text-center">Out of {settings.defaultLeaveQuota} annual days</p>
+            <p className="text-xs text-slate-400 mt-2 text-center">Out of {totalLeaveQuota} annual days {creditedLeaves > 0 ? `(${settings.defaultLeaveQuota} + ${creditedLeaves} credited)` : ''}</p>
+            
+            {currentUserData?.wfhEnabled && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">Work From Home (WFH)</h4>
+                <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <div>
+                    <p className="text-xs text-emerald-600 font-medium">Available</p>
+                    <p className="text-2xl font-black text-emerald-700">{Math.max(0, totalWfhQuota - approvedWfhDays)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500 font-medium">Used</p>
+                    <p className="text-lg font-bold text-slate-700">{approvedWfhDays}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 mt-2 text-center">Out of {totalWfhQuota} WFH days</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -266,6 +294,7 @@ export const Attendance = () => {
                     <option>Vacation</option>
                     <option>Sick Leave</option>
                     <option>Personal</option>
+                    {currentUserData?.wfhEnabled && <option>Work From Home</option>}
                     <option>Other</option>
                   </select>
                 </div>

@@ -146,6 +146,10 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
     joiningDate: user?.joiningDate || '',
     internshipDate: user?.internshipDate || '',
     conversionDate: user?.conversionDate || '',
+    designation: user?.designation || '',
+    wfhEnabled: user?.wfhEnabled || false,
+    creditedLeaves: user?.creditedLeaves || 0,
+    isIntern: user?.isIntern || false,
     password: ''
   });
   const [loading, setLoading] = useState(false);
@@ -159,6 +163,13 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
       if (user) {
         const updates: any = { ...formData };
         if (!updates.password) delete updates.password;
+        // Remove empty optional fields to satisfy Firestore rules
+        if (!updates.managerId) delete updates.managerId;
+        if (!updates.joiningDate) delete updates.joiningDate;
+        if (!updates.internshipDate) delete updates.internshipDate;
+        if (!updates.conversionDate) delete updates.conversionDate;
+        if (!updates.designation) delete updates.designation;
+        
         await updateUser(user.id, updates);
       } else {
         const newUser: any = {
@@ -171,6 +182,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         if (!newUser.joiningDate) delete newUser.joiningDate;
         if (!newUser.internshipDate) delete newUser.internshipDate;
         if (!newUser.conversionDate) delete newUser.conversionDate;
+        if (!newUser.designation) delete newUser.designation;
         
         await addUser(newUser);
       }
@@ -230,18 +242,17 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                   onChange={e => setFormData({...formData, email: e.target.value})}
                 />
               </div>
-              {user ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Set New Password (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Leave blank to keep current"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
-                    value={formData.password}
-                    onChange={e => setFormData({...formData, password: e.target.value})}
-                  />
-                </div>
-              ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Designation</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Software Engineer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                  value={formData.designation}
+                  onChange={e => setFormData({...formData, designation: e.target.value})}
+                />
+              </div>
+              {!user && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
                   <input
@@ -252,6 +263,11 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                     value={formData.password}
                     onChange={e => setFormData({...formData, password: e.target.value})}
                   />
+                </div>
+              )}
+              {user && (
+                <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg text-xs text-amber-700">
+                  <span className="font-bold">Note:</span> To reset a user's password, use the Key icon on their profile card to send a reset email. For security reasons, admins cannot directly set user passwords.
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -309,23 +325,62 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Internship Date</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Credited Leaves</label>
                   <input
-                    type="date"
+                    type="number"
+                    min="0"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
-                    value={formData.internshipDate}
-                    onChange={e => setFormData({...formData, internshipDate: e.target.value})}
+                    value={formData.creditedLeaves}
+                    onChange={e => setFormData({...formData, creditedLeaves: parseInt(e.target.value) || 0})}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Conversion Date</label>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="date"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
-                    value={formData.conversionDate}
-                    onChange={e => setFormData({...formData, conversionDate: e.target.value})}
+                    type="checkbox"
+                    checked={formData.isIntern}
+                    onChange={e => setFormData({...formData, isIntern: e.target.checked})}
+                    className="w-4 h-4 text-violet-600 rounded border-slate-300 focus:ring-violet-500"
                   />
-                </div>
+                  <span className="text-sm font-bold text-slate-700">Is/Was an Intern?</span>
+                </label>
+                
+                {formData.isIntern && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Internship Date</label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                        value={formData.internshipDate}
+                        onChange={e => setFormData({...formData, internshipDate: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Conversion Date</label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                        value={formData.conversionDate}
+                        onChange={e => setFormData({...formData, conversionDate: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.wfhEnabled}
+                    onChange={e => setFormData({...formData, wfhEnabled: e.target.checked})}
+                    className="w-4 h-4 text-violet-600 rounded border-slate-300 focus:ring-violet-500"
+                  />
+                  <span className="text-sm font-bold text-slate-700">Enable Work From Home (WFH)</span>
+                </label>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Teams</label>

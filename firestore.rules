@@ -67,7 +67,11 @@ service cloud.firestore {
              (!('managerId' in data) || (data.managerId is string && data.managerId.size() <= 100)) &&
              (!('joiningDate' in data) || (data.joiningDate is string && data.joiningDate.size() <= 50)) &&
              (!('internshipDate' in data) || (data.internshipDate is string && data.internshipDate.size() <= 50)) &&
-             (!('conversionDate' in data) || (data.conversionDate is string && data.conversionDate.size() <= 50));
+             (!('conversionDate' in data) || (data.conversionDate is string && data.conversionDate.size() <= 50)) &&
+             (!('designation' in data) || (data.designation is string && data.designation.size() <= 100)) &&
+             (!('wfhEnabled' in data) || data.wfhEnabled is bool) &&
+             (!('creditedLeaves' in data) || data.creditedLeaves is number) &&
+             (!('isIntern' in data) || data.isIntern is bool);
     }
 
     function isValidTeam() {
@@ -96,7 +100,10 @@ service cloud.firestore {
 
     function isValidSettings() {
       let data = request.resource.data;
-      return data.defaultLeaveQuota is number && data.defaultLeaveQuota >= 0 && data.defaultLeaveQuota <= 365;
+      return data.defaultLeaveQuota is number && data.defaultLeaveQuota >= 0 && data.defaultLeaveQuota <= 365 &&
+             (!('defaultWfhQuota' in data) || (data.defaultWfhQuota is number && data.defaultWfhQuota >= 0 && data.defaultWfhQuota <= 365)) &&
+             (!('companyName' in data) || (data.companyName is string && data.companyName.size() <= 100)) &&
+             (!('workDaysPerWeek' in data) || (data.workDaysPerWeek is number && data.workDaysPerWeek >= 1 && data.workDaysPerWeek <= 7));
     }
 
     function isValidDocument() {

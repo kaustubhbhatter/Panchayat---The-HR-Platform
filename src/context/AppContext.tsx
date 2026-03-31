@@ -18,6 +18,10 @@ export interface User {
   joiningDate?: string;
   internshipDate?: string;
   conversionDate?: string;
+  designation?: string;
+  wfhEnabled?: boolean;
+  creditedLeaves?: number;
+  isIntern?: boolean;
 }
 
 export interface Team {
@@ -46,6 +50,9 @@ export interface Holiday {
 
 export interface AppSettings {
   defaultLeaveQuota: number;
+  defaultWfhQuota?: number;
+  companyName?: string;
+  workDaysPerWeek?: number;
 }
 
 export interface DocumentItem {
@@ -86,7 +93,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [teams, setTeams] = useState<Team[]>([]);
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({ defaultLeaveQuota: 20 });
+  const [settings, setSettings] = useState<AppSettings>({ defaultLeaveQuota: 20, defaultWfhQuota: 10 });
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

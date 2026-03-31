@@ -5,11 +5,16 @@ import { useAppContext } from '../context/AppContext';
 export const Admin = () => {
   const { settings, updateSettings, holidays, addHoliday, deleteHoliday } = useAppContext();
   const [quota, setQuota] = useState(settings.defaultLeaveQuota.toString());
+  const [wfhQuota, setWfhQuota] = useState((settings.defaultWfhQuota || 10).toString());
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const handleSaveSettings = async () => {
-    await updateSettings({ ...settings, defaultLeaveQuota: parseInt(quota) || 0 });
+    await updateSettings({ 
+      ...settings, 
+      defaultLeaveQuota: parseInt(quota) || 0,
+      defaultWfhQuota: parseInt(wfhQuota) || 0
+    });
     alert('Settings saved successfully');
   };
 
@@ -63,6 +68,15 @@ export const Admin = () => {
               type="number"
               value={quota}
               onChange={e => setQuota(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+          <div className="flex-1 max-w-xs">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Annual WFH Quota (Days)</label>
+            <input
+              type="number"
+              value={wfhQuota}
+              onChange={e => setWfhQuota(e.target.value)}
               className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
             />
           </div>
