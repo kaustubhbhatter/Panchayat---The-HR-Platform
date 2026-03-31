@@ -1,164 +1,231 @@
 import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem } from '../context/AppContext';
+import { db, auth } from '../firebase';
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  getDoc, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where 
+} from 'firebase/firestore';
+import { 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 
-// Simulate network delay for realistic testing
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-const ADMIN_EMAIL = 'bhatter.kaustubh@gmail.com';
-const ADMIN_PASS = 'pass@123';
-
-// Initialize mock database in localStorage
-export const initDB = () => {
-  const version = localStorage.getItem('adda_version');
-  if (version !== '2') {
-    const initialUsers = [{
-      id: 'admin-1',
-      name: 'Kaustubh Bhatter',
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASS,
-      role: 'Admin' as Role,
-      teamIds: [],
-      avatar: 'https://ui-avatars.com/api/?name=Kaustubh+Bhatter&background=6D28D9&color=fff'
-    }];
-    localStorage.setItem('adda_users', JSON.stringify(initialUsers));
-    localStorage.setItem('adda_teams', JSON.stringify([]));
-    localStorage.setItem('adda_leaves', JSON.stringify([]));
-    localStorage.setItem('adda_holidays', JSON.stringify([]));
-    localStorage.setItem('adda_settings', JSON.stringify({ defaultLeaveQuota: 20 }));
-    localStorage.setItem('adda_documents', JSON.stringify([]));
-    localStorage.setItem('adda_version', '2');
-  }
+// Helper to handle Firestore errors
+const handleFirestoreError = (error: any, operation: string) => {
+  console.error(`Firestore Error (${operation}):`, error);
+  throw new Error(error.message || 'An error occurred with the database.');
 };
 
-const getDb = (key: string) => JSON.parse(localStorage.getItem(key) || '[]');
-const setDb = (key: string, data: any) => localStorage.setItem(key, JSON.stringify(data));
-
-// Mock API Service (Replace with Cloudflare Worker fetch calls later)
 export const api = {
   login: async (email: string, password: string): Promise<User> => {
-    await delay(500);
-    const users = getDb('adda_users');
-    const user = users.find((u: any) => u.email === email && u.password === password);
-    if (!user) throw new Error('Invalid email or password');
-    const { password: _, ...userWithoutPass } = user;
-    return userWithoutPass;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      
+      if (!userDoc.exists()) {
+        throw new Error('User profile not found');
+      }
+      
+      return { id: userDoc.id, ...userDoc.data() } as User;
+    } catch (error: any) {
+      throw new Error(error.message || 'Invalid email or password');
+    }
   },
 
-  resetPassword: async (email: string, newPassword?: string): Promise<void> => {
-    await delay(500);
-    const users = getDb('adda_users');
-    const userIndex = users.findIndex((u: any) => u.email === email);
-    if (userIndex === -1) throw new Error('User not found');
-    users[userIndex].password = newPassword || 'newpass@123'; 
-    setDb('adda_users', users);
+  resetPassword: async (email: string): Promise<void> => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to send reset email');
+    }
   },
 
   getUsers: async (): Promise<User[]> => {
-    await delay(300);
-    return getDb('adda_users').map((u: any) => {
-      const { password, ...rest } = u;
-      return rest;
-    });
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    } catch (error) {
+      return handleFirestoreError(error, 'getUsers');
+    }
   },
 
   getTeams: async (): Promise<Team[]> => {
-    await delay(300);
-    return getDb('adda_teams');
+    try {
+      const snapshot = await getDocs(collection(db, 'teams'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
+    } catch (error) {
+      return handleFirestoreError(error, 'getTeams');
+    }
   },
 
-  addUser: async (user: Omit<User, 'id'> & { password?: string }): Promise<User> => {
-    await delay(300);
-    const users = getDb('adda_users');
-    if (users.find((u: any) => u.email === user.email)) {
-      throw new Error('Email already exists');
+  addUser: async (userData: Omit<User, 'id'> & { password?: string }): Promise<User> => {
+    try {
+      // In a real app, you'd use a Cloud Function to create the auth user
+      // so the current admin doesn't get logged out. 
+      // For this prototype, we'll just create the Firestore document.
+      // The user will need to use "Forgot Password" to set their initial password
+      // if we don't create the auth account here.
+      
+      const { password, ...userProfile } = userData;
+      
+      // Create document with auto-generated ID
+      const docRef = await addDoc(collection(db, 'users'), userProfile);
+      
+      return { id: docRef.id, ...userProfile } as User;
+    } catch (error) {
+      return handleFirestoreError(error, 'addUser');
     }
-    const newUser = { 
-      ...user, 
-      id: Date.now().toString(),
-      password: user.password || 'welcome@123'
-    };
-    users.push(newUser);
-    setDb('adda_users', users);
-    const { password, ...rest } = newUser;
-    return rest;
   },
 
   updateUser: async (id: string, updates: Partial<User> & { password?: string }): Promise<User> => {
-    await delay(300);
-    const users = getDb('adda_users');
-    const idx = users.findIndex((u: any) => u.id === id);
-    if (idx === -1) throw new Error('User not found');
-    users[idx] = { ...users[idx], ...updates };
-    setDb('adda_users', users);
-    const { password, ...rest } = users[idx];
-    return rest;
+    try {
+      const { password, ...profileUpdates } = updates;
+      const userRef = doc(db, 'users', id);
+      
+      await updateDoc(userRef, profileUpdates);
+      
+      const updatedDoc = await getDoc(userRef);
+      return { id: updatedDoc.id, ...updatedDoc.data() } as User;
+    } catch (error) {
+      return handleFirestoreError(error, 'updateUser');
+    }
   },
 
   addTeam: async (team: Omit<Team, 'id'>): Promise<Team> => {
-    await delay(300);
-    const teams = getDb('adda_teams');
-    const newTeam = { ...team, id: Date.now().toString() };
-    teams.push(newTeam);
-    setDb('adda_teams', teams);
-    return newTeam;
+    try {
+      const docRef = await addDoc(collection(db, 'teams'), team);
+      return { id: docRef.id, ...team } as Team;
+    } catch (error) {
+      return handleFirestoreError(error, 'addTeam');
+    }
   },
 
   updateTeam: async (id: string, updates: Partial<Team>): Promise<Team> => {
-    await delay(300);
-    const teams = getDb('adda_teams');
-    const idx = teams.findIndex((t: any) => t.id === id);
-    if (idx === -1) throw new Error('Team not found');
-    teams[idx] = { ...teams[idx], ...updates };
-    setDb('adda_teams', teams);
-    return teams[idx];
+    try {
+      const teamRef = doc(db, 'teams', id);
+      await updateDoc(teamRef, updates);
+      
+      const updatedDoc = await getDoc(teamRef);
+      return { id: updatedDoc.id, ...updatedDoc.data() } as Team;
+    } catch (error) {
+      return handleFirestoreError(error, 'updateTeam');
+    }
   },
 
-  getLeaves: async (): Promise<LeaveRequest[]> => getDb('adda_leaves'),
+  getLeaves: async (): Promise<LeaveRequest[]> => {
+    try {
+      const snapshot = await getDocs(collection(db, 'leaves'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveRequest));
+    } catch (error) {
+      return handleFirestoreError(error, 'getLeaves');
+    }
+  },
+
   addLeave: async (leave: Omit<LeaveRequest, 'id'>): Promise<LeaveRequest> => {
-    const leaves = getDb('adda_leaves');
-    const newLeave = { ...leave, id: Date.now().toString() };
-    leaves.push(newLeave);
-    setDb('adda_leaves', leaves);
-    return newLeave;
-  },
-  updateLeave: async (id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest> => {
-    const leaves = getDb('adda_leaves');
-    const idx = leaves.findIndex((l: any) => l.id === id);
-    leaves[idx] = { ...leaves[idx], ...updates };
-    setDb('adda_leaves', leaves);
-    return leaves[idx];
+    try {
+      const docRef = await addDoc(collection(db, 'leaves'), leave);
+      return { id: docRef.id, ...leave } as LeaveRequest;
+    } catch (error) {
+      return handleFirestoreError(error, 'addLeave');
+    }
   },
 
-  getHolidays: async (): Promise<Holiday[]> => getDb('adda_holidays'),
-  addHoliday: async (holiday: Omit<Holiday, 'id'>): Promise<Holiday> => {
-    const holidays = getDb('adda_holidays');
-    const newHoliday = { ...holiday, id: Date.now().toString() };
-    holidays.push(newHoliday);
-    setDb('adda_holidays', holidays);
-    return newHoliday;
+  updateLeave: async (id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest> => {
+    try {
+      const leaveRef = doc(db, 'leaves', id);
+      await updateDoc(leaveRef, updates);
+      
+      const updatedDoc = await getDoc(leaveRef);
+      return { id: updatedDoc.id, ...updatedDoc.data() } as LeaveRequest;
+    } catch (error) {
+      return handleFirestoreError(error, 'updateLeave');
+    }
   },
+
+  getHolidays: async (): Promise<Holiday[]> => {
+    try {
+      const snapshot = await getDocs(collection(db, 'holidays'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Holiday));
+    } catch (error) {
+      return handleFirestoreError(error, 'getHolidays');
+    }
+  },
+
+  addHoliday: async (holiday: Omit<Holiday, 'id'>): Promise<Holiday> => {
+    try {
+      const docRef = await addDoc(collection(db, 'holidays'), holiday);
+      return { id: docRef.id, ...holiday } as Holiday;
+    } catch (error) {
+      return handleFirestoreError(error, 'addHoliday');
+    }
+  },
+
   deleteHoliday: async (id: string): Promise<void> => {
-    const holidays = getDb('adda_holidays').filter((h: any) => h.id !== id);
-    setDb('adda_holidays', holidays);
+    try {
+      await deleteDoc(doc(db, 'holidays', id));
+    } catch (error) {
+      return handleFirestoreError(error, 'deleteHoliday');
+    }
   },
 
   getSettings: async (): Promise<AppSettings> => {
-    return JSON.parse(localStorage.getItem('adda_settings') || '{"defaultLeaveQuota": 20}');
-  },
-  updateSettings: async (settings: AppSettings): Promise<AppSettings> => {
-    setDb('adda_settings', settings);
-    return settings;
+    try {
+      const docRef = doc(db, 'settings', 'global');
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return docSnap.data() as AppSettings;
+      }
+      
+      // Default settings if none exist
+      const defaultSettings = { defaultLeaveQuota: 20 };
+      await setDoc(docRef, defaultSettings);
+      return defaultSettings;
+    } catch (error) {
+      return handleFirestoreError(error, 'getSettings');
+    }
   },
 
-  getDocuments: async (): Promise<DocumentItem[]> => getDb('adda_documents'),
-  addDocument: async (doc: Omit<DocumentItem, 'id'>): Promise<DocumentItem> => {
-    const docs = getDb('adda_documents');
-    const newDoc = { ...doc, id: Date.now().toString() };
-    docs.push(newDoc);
-    setDb('adda_documents', docs);
-    return newDoc;
+  updateSettings: async (settings: AppSettings): Promise<AppSettings> => {
+    try {
+      await setDoc(doc(db, 'settings', 'global'), settings);
+      return settings;
+    } catch (error) {
+      return handleFirestoreError(error, 'updateSettings');
+    }
   },
+
+  getDocuments: async (): Promise<DocumentItem[]> => {
+    try {
+      const snapshot = await getDocs(collection(db, 'documents'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentItem));
+    } catch (error) {
+      return handleFirestoreError(error, 'getDocuments');
+    }
+  },
+
+  addDocument: async (document: Omit<DocumentItem, 'id'>): Promise<DocumentItem> => {
+    try {
+      const docRef = await addDoc(collection(db, 'documents'), document);
+      return { id: docRef.id, ...document } as DocumentItem;
+    } catch (error) {
+      return handleFirestoreError(error, 'addDocument');
+    }
+  },
+
   deleteDocument: async (id: string): Promise<void> => {
-    const docs = getDb('adda_documents').filter((d: any) => d.id !== id);
-    setDb('adda_documents', docs);
+    try {
+      await deleteDoc(doc(db, 'documents', id));
+    } catch (error) {
+      return handleFirestoreError(error, 'deleteDocument');
+    }
   }
 };

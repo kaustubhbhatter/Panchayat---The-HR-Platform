@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import { db } from '../firebase';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 
 export type Role = 'Admin' | 'HR' | 'Team Lead' | 'Employee';
 
@@ -85,68 +87,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadData();
+    if (!user) {
+      setUsers([]);
+      setTeams([]);
+      setLeaves([]);
+      setHolidays([]);
+      setDocuments([]);
+      return;
     }
+
+    setIsLoading(true);
+
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+    }, (error) => console.error("Error fetching users:", error));
+
+    const unsubTeams = onSnapshot(collection(db, 'teams'), (snapshot) => {
+      setTeams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team)));
+    }, (error) => console.error("Error fetching teams:", error));
+
+    const unsubLeaves = onSnapshot(collection(db, 'leaves'), (snapshot) => {
+      setLeaves(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveRequest)));
+    }, (error) => console.error("Error fetching leaves:", error));
+
+    const unsubHolidays = onSnapshot(collection(db, 'holidays'), (snapshot) => {
+      setHolidays(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Holiday)));
+    }, (error) => console.error("Error fetching holidays:", error));
+
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+      if (docSnap.exists()) {
+        setSettings(docSnap.data() as AppSettings);
+      }
+    }, (error) => console.error("Error fetching settings:", error));
+
+    const unsubDocuments = onSnapshot(collection(db, 'documents'), (snapshot) => {
+      setDocuments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentItem)));
+    }, (error) => console.error("Error fetching documents:", error));
+
+    setIsLoading(false);
+
+    return () => {
+      unsubUsers();
+      unsubTeams();
+      unsubLeaves();
+      unsubHolidays();
+      unsubSettings();
+      unsubDocuments();
+    };
   }, [user]);
 
   const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const [u, t, l, h, s, d] = await Promise.all([
-        api.getUsers(), api.getTeams(), api.getLeaves(), api.getHolidays(), api.getSettings(), api.getDocuments()
-      ]);
-      setUsers(u); setTeams(t); setLeaves(l); setHolidays(h); setSettings(s); setDocuments(d);
-    } catch (error) {
-      console.error('Failed to load data', error);
-    } finally {
-      setIsLoading(false);
-    }
+    // With onSnapshot, we don't need to manually fetch data anymore
+    // This function is kept for compatibility if needed, but it's mostly a no-op now
+    console.log("Data is synced automatically via Firestore listeners.");
   };
 
   const addUser = async (u: Omit<User, 'id'> & { password?: string }) => {
-    const res = await api.addUser(u);
-    setUsers([...users, res]);
+    await api.addUser(u);
   };
   const updateUser = async (id: string, updates: Partial<User> & { password?: string }) => {
-    const res = await api.updateUser(id, updates);
-    setUsers(users.map(u => u.id === id ? res : u));
+    await api.updateUser(id, updates);
   };
   const addTeam = async (t: Omit<Team, 'id'>) => {
-    const res = await api.addTeam(t);
-    setTeams([...teams, res]);
+    await api.addTeam(t);
   };
   const updateTeam = async (id: string, updates: Partial<Team>) => {
-    const res = await api.updateTeam(id, updates);
-    setTeams(teams.map(t => t.id === id ? res : t));
+    await api.updateTeam(id, updates);
   };
   const addLeave = async (l: Omit<LeaveRequest, 'id'>) => {
-    const res = await api.addLeave(l);
-    setLeaves([...leaves, res]);
+    await api.addLeave(l);
   };
   const updateLeave = async (id: string, updates: Partial<LeaveRequest>) => {
-    const res = await api.updateLeave(id, updates);
-    setLeaves(leaves.map(l => l.id === id ? res : l));
+    await api.updateLeave(id, updates);
   };
   const addHoliday = async (h: Omit<Holiday, 'id'>) => {
-    const res = await api.addHoliday(h);
-    setHolidays([...holidays, res]);
+    await api.addHoliday(h);
   };
   const deleteHoliday = async (id: string) => {
     await api.deleteHoliday(id);
-    setHolidays(holidays.filter(h => h.id !== id));
   };
   const updateSettings = async (s: AppSettings) => {
-    const res = await api.updateSettings(s);
-    setSettings(res);
+    await api.updateSettings(s);
   };
   const addDocument = async (d: Omit<DocumentItem, 'id'>) => {
-    const res = await api.addDocument(d);
-    setDocuments([...documents, res]);
+    await api.addDocument(d);
   };
   const deleteDocument = async (id: string) => {
     await api.deleteDocument(id);
-    setDocuments(documents.filter(d => d.id !== id));
   };
 
   return (
