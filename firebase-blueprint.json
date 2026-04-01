@@ -14,7 +14,9 @@
         "status": { "type": "string", "enum": ["Active", "Inactive"], "description": "The user's employment status." },
         "joiningDate": { "type": "string", "format": "date", "description": "The user's joining date." },
         "internshipDate": { "type": "string", "format": "date", "description": "The user's internship start date." },
-        "conversionDate": { "type": "string", "format": "date", "description": "The user's conversion to full-time date." }
+        "conversionDate": { "type": "string", "format": "date", "description": "The user's conversion to full-time date." },
+        "birthday": { "type": "string", "format": "date", "description": "The user's birthday." },
+        "anniversary": { "type": "string", "format": "date", "description": "The user's work anniversary." }
       },
       "required": ["name", "email", "role", "teamIds", "avatar", "status"]
     },
@@ -36,6 +38,7 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string", "description": "ID of the user requesting leave." },
+        "managerId": { "type": "string", "description": "ID of the user's manager at the time of request." },
         "startDate": { "type": "string", "format": "date", "description": "Start date of the leave." },
         "endDate": { "type": "string", "format": "date", "description": "End date of the leave." },
         "type": { "type": "string", "description": "Type of leave (e.g., Vacation, Sick)." },
@@ -74,6 +77,47 @@
         "addedBy": { "type": "string", "description": "Name of the user who added the document." }
       },
       "required": ["title", "url", "description", "addedBy"]
+    },
+    "AdminNote": {
+      "title": "AdminNote",
+      "description": "A note created by an admin with an expiry date.",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string", "description": "The content of the note." },
+        "expiryDate": { "type": "string", "format": "date", "description": "The date when the note expires." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the note was created." },
+        "createdBy": { "type": "string", "description": "ID of the admin who created the note." }
+      },
+      "required": ["content", "expiryDate", "createdAt", "createdBy"]
+    },
+    "ReviewCycle": {
+      "title": "ReviewCycle",
+      "description": "A performance review cycle.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the review cycle." },
+        "type": { "type": "string", "enum": ["Manager-to-Junior", "Peer-to-Peer", "Organization"], "description": "Type of review." },
+        "targetTeamIds": { "type": "array", "items": { "type": "string" }, "description": "IDs of teams targeted by this review cycle." },
+        "questions": { "type": "array", "items": { "type": "string" }, "description": "List of questions." },
+        "deadline": { "type": "string", "format": "date", "description": "Deadline for submissions." },
+        "status": { "type": "string", "enum": ["Active", "Closed"], "description": "Status of the cycle." },
+        "createdBy": { "type": "string", "description": "ID of the user who created the cycle." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the cycle was created." }
+      },
+      "required": ["title", "type", "questions", "deadline", "status", "createdBy", "createdAt"]
+    },
+    "ReviewSubmission": {
+      "title": "ReviewSubmission",
+      "description": "A submission for a review cycle.",
+      "type": "object",
+      "properties": {
+        "cycleId": { "type": "string", "description": "ID of the review cycle." },
+        "reviewerId": { "type": "string", "description": "ID of the user submitting the review." },
+        "revieweeId": { "type": "string", "description": "ID of the user being reviewed (if applicable)." },
+        "answers": { "type": "object", "description": "Map of question index to answer." },
+        "submittedAt": { "type": "string", "format": "date-time", "description": "When the review was submitted." }
+      },
+      "required": ["cycleId", "reviewerId", "answers", "submittedAt"]
     }
   },
   "firestore": {
@@ -100,6 +144,18 @@
     "/documents/{documentId}": {
       "schema": "DocumentItem",
       "description": "Stores documents and links."
+    },
+    "/adminNotes/{noteId}": {
+      "schema": "AdminNote",
+      "description": "Stores admin notes."
+    },
+    "/reviewCycles/{cycleId}": {
+      "schema": "ReviewCycle",
+      "description": "Stores review cycles."
+    },
+    "/reviewSubmissions/{submissionId}": {
+      "schema": "ReviewSubmission",
+      "description": "Stores review submissions."
     }
   }
 }

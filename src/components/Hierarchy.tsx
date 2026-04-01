@@ -19,7 +19,15 @@ export const Hierarchy = () => {
   );
 };
 
-const TreeNode = ({ user, users, teams, level }: { user: User, users: User[], teams: any[], level: number }) => {
+interface TreeNodeProps {
+  key?: string | number;
+  user: User;
+  users: User[];
+  teams: any[];
+  level: number;
+}
+
+const TreeNode = ({ user, users, teams, level }: TreeNodeProps) => {
   const directReports = users.filter(u => u.managerId === user.id);
   const userTeams = teams.filter(t => user.teamIds?.includes(t.id));
 

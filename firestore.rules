@@ -17,14 +17,15 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin') ||
         (request.auth.token.email == "bhatter.kaustubh@gmail.com" && request.auth.token.email_verified == true)
       );
     }
 
     function isManagerOf(userId) {
-      let userDoc = get(/databases/$(database)/documents/users/$(userId)).data;
-      return isAuthenticated() && userDoc.managerId == request.auth.uid;
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(userId)) &&
+             get(/databases/$(database)/documents/users/$(userId)).data.managerId == request.auth.uid;
     }
 
     function hasRequiredFields(fields) {
@@ -71,7 +72,9 @@ service cloud.firestore {
              (!('designation' in data) || (data.designation is string && data.designation.size() <= 100)) &&
              (!('wfhEnabled' in data) || data.wfhEnabled is bool) &&
              (!('creditedLeaves' in data) || data.creditedLeaves is number) &&
-             (!('isIntern' in data) || data.isIntern is bool);
+             (!('isIntern' in data) || data.isIntern is bool) &&
+             (!('birthday' in data) || (data.birthday is string && data.birthday.size() <= 50)) &&
+             (!('anniversary' in data) || (data.anniversary is string && data.anniversary.size() <= 50));
     }
 
     function isValidTeam() {
@@ -85,6 +88,7 @@ service cloud.firestore {
     function isValidLeaveRequest() {
       let data = request.resource.data;
       return data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             (!('managerId' in data) || data.managerId == null || (data.managerId is string && data.managerId.size() < 100)) &&
              data.startDate is string && data.startDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.endDate is string && data.endDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.type is string && data.type.size() > 0 && data.type.size() < 50 &&
@@ -118,6 +122,7 @@ service cloud.firestore {
       let data = request.resource.data;
       return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.type in ['Manager-to-Junior', 'Peer-to-Peer', 'Organization'] &&
+             (!('targetTeamIds' in data) || data.targetTeamIds is list) &&
              data.questions is list && data.questions.size() <= 50 &&
              data.deadline is string && data.deadline.size() <= 50 &&
              data.status in ['Active', 'Closed'] &&
@@ -134,12 +139,22 @@ service cloud.firestore {
              data.submittedAt is string && data.submittedAt.size() <= 50;
     }
 
+    function isValidAdminNote() {
+      let data = request.resource.data;
+      return hasRequiredFields(['content', 'expiryDate', 'createdAt', 'createdBy']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 2000 &&
+             data.expiryDate is string && data.expiryDate.size() <= 50 &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.createdBy is string && data.createdBy.size() <= 100 &&
+             data.createdBy == request.auth.uid;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAdmin() && isValidUser();
       allow update: if isAuthenticated() && isValidUser() && (
         isAdmin() || 
@@ -149,19 +164,20 @@ service cloud.firestore {
     }
 
     match /teams/{teamId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAdmin() && isValidTeam();
       allow update: if isAdmin() && isValidTeam();
       allow delete: if isAdmin();
     }
 
     match /leaves/{leaveId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAuthenticated() && isValidLeaveRequest() && request.resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() && isValidLeaveRequest() && (
         isAdmin() || 
+        resource.data.managerId == request.auth.uid ||
         isManagerOf(resource.data.userId) ||
-        (request.resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['status']))
+        (request.resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['status', 'userId', 'managerId', 'startDate', 'endDate', 'type', 'createdAt']))
       );
       allow delete: if isAuthenticated() && (
         isAdmin() || 
@@ -170,37 +186,44 @@ service cloud.firestore {
     }
 
     match /holidays/{holidayId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAdmin() && isValidHoliday();
       allow update: if isAdmin() && isValidHoliday();
       allow delete: if isAdmin();
     }
 
     match /settings/global {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAdmin() && isValidSettings();
       allow update: if isAdmin() && isValidSettings();
       allow delete: if false; // Settings should not be deleted
     }
 
     match /documents/{documentId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAdmin() && isValidDocument();
       allow update: if isAdmin() && isValidDocument();
       allow delete: if isAdmin();
     }
 
     match /reviewCycles/{cycleId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidReviewCycle();
-      allow update: if isAuthenticated() && isValidReviewCycle();
+      allow read: if request.auth != null;
+      allow create: if isAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Team Leader');
+      allow update: if isAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Team Leader');
       allow delete: if isAdmin();
     }
 
     match /reviewSubmissions/{submissionId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if isAuthenticated() && isValidReviewSubmission() && request.resource.data.reviewerId == request.auth.uid;
       allow update: if false; // Reviews cannot be updated once submitted
+      allow delete: if isAdmin();
+    }
+
+    match /adminNotes/{noteId} {
+      allow read: if request.auth != null;
+      allow create: if isAdmin() && isValidAdminNote();
+      allow update: if isAdmin() && isValidAdminNote();
       allow delete: if isAdmin();
     }
   }

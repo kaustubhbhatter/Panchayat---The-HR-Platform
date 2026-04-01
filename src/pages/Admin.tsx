@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Save, Trash2, Plus, Copy } from 'lucide-react';
+import { Calendar as CalendarIcon, Save, Trash2, Plus, Copy, MessageSquare } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 export const Admin = () => {
-  const { settings, updateSettings, holidays, addHoliday, deleteHoliday } = useAppContext();
+  const { user } = useAuth();
+  const { settings, updateSettings, holidays, addHoliday, deleteHoliday, adminNotes, addAdminNote, deleteAdminNote } = useAppContext();
   const [quota, setQuota] = useState(settings.defaultLeaveQuota.toString());
   const [wfhQuota, setWfhQuota] = useState((settings.defaultWfhQuota || 10).toString());
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [newNote, setNewNote] = useState({ content: '', expiryDate: '' });
 
   const handleSaveSettings = async () => {
     await updateSettings({ 
@@ -44,6 +47,18 @@ export const Admin = () => {
       }
       alert('Holidays duplicated successfully!');
     }
+  };
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNote.content || !newNote.expiryDate || !user) return;
+    await addAdminNote({
+      content: newNote.content,
+      expiryDate: newNote.expiryDate,
+      createdAt: new Date().toISOString(),
+      createdBy: user.id
+    });
+    setNewNote({ content: '', expiryDate: '' });
   };
 
   const filteredHolidays = holidays.filter(h => new Date(h.date).getFullYear() === selectedYear);
@@ -175,6 +190,75 @@ export const Admin = () => {
           {filteredHolidays.length === 0 && (
             <div className="p-8 text-center text-slate-500">
               No public holidays configured for {selectedYear}.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-800">Admin Notes</h3>
+          <p className="text-sm text-slate-500 mt-1">Add notes or announcements for the dashboard.</p>
+        </div>
+        
+        <div className="p-6 border-b border-slate-50 bg-slate-50/50">
+          <form onSubmit={handleAddNote} className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Note Content</label>
+              <input
+                type="text"
+                required
+                value={newNote.content}
+                onChange={e => setNewNote({...newNote, content: e.target.value})}
+                placeholder="e.g., Office closed for maintenance on Friday"
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
+              <input
+                type="date"
+                required
+                value={newNote.expiryDate}
+                onChange={e => setNewNote({...newNote, expiryDate: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-colors"
+            >
+              <Plus size={20} />
+              Add Note
+            </button>
+          </form>
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {adminNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
+            <div key={note.id} className="p-4 px-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">{note.content}</p>
+                  <p className="text-sm text-slate-500">
+                    Expires: {new Date(note.expiryDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => deleteAdminNote(note.id)}
+                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+          ))}
+          {adminNotes.length === 0 && (
+            <div className="p-8 text-center text-slate-500">
+              No active admin notes.
             </div>
           )}
         </div>

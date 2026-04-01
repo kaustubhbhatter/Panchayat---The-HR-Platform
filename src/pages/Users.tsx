@@ -136,6 +136,7 @@ export const Users = () => {
 
 const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }) => {
   const { addUser, updateUser, teams, users } = useAppContext();
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -150,6 +151,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
     wfhEnabled: user?.wfhEnabled || false,
     creditedLeaves: user?.creditedLeaves || 0,
     isIntern: user?.isIntern || false,
+    birthday: user?.birthday || '',
+    anniversary: user?.anniversary || '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
@@ -169,6 +172,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         if (!updates.internshipDate) delete updates.internshipDate;
         if (!updates.conversionDate) delete updates.conversionDate;
         if (!updates.designation) delete updates.designation;
+        if (!updates.birthday) delete updates.birthday;
+        if (!updates.anniversary) delete updates.anniversary;
         
         await updateUser(user.id, updates);
       } else {
@@ -183,6 +188,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         if (!newUser.internshipDate) delete newUser.internshipDate;
         if (!newUser.conversionDate) delete newUser.conversionDate;
         if (!newUser.designation) delete newUser.designation;
+        if (!newUser.birthday) delete newUser.birthday;
+        if (!newUser.anniversary) delete newUser.anniversary;
         
         await addUser(newUser);
       }
@@ -274,7 +281,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
                   <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    disabled={currentUser?.role !== 'Admin'}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.role}
                     onChange={e => setFormData({...formData, role: e.target.value as Role})}
                   >
@@ -286,7 +294,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
                   <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    disabled={currentUser?.role !== 'Admin'}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.status}
                     onChange={e => setFormData({...formData, status: e.target.value as any})}
                   >
@@ -304,7 +313,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Manager</label>
                   <select
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    disabled={currentUser?.role !== 'Admin'}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.managerId}
                     onChange={e => setFormData({...formData, managerId: e.target.value})}
                   >
@@ -319,8 +329,9 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Joining Date</label>
                   <input
+                    disabled={currentUser?.role !== 'Admin'}
                     type="date"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.joiningDate}
                     onChange={e => setFormData({...formData, joiningDate: e.target.value})}
                   />
@@ -328,11 +339,33 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Credited Leaves</label>
                   <input
+                    disabled={currentUser?.role !== 'Admin'}
                     type="number"
                     min="0"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.creditedLeaves}
                     onChange={e => setFormData({...formData, creditedLeaves: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Birthday</label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    value={formData.birthday}
+                    onChange={e => setFormData({...formData, birthday: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Work Anniversary</label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    value={formData.anniversary}
+                    onChange={e => setFormData({...formData, anniversary: e.target.value})}
                   />
                 </div>
               </div>

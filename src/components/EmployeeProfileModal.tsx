@@ -86,7 +86,6 @@ export const EmployeeProfileModal = ({ user, onClose }: { user: User, onClose: (
         {/* Tabs */}
         <div className="flex border-b border-stone-100 px-8">
           <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')}>Details</TabButton>
-          <TabButton active={activeTab === 'journey'} onClick={() => setActiveTab('journey')}>Journey</TabButton>
           {isManagerOrAdmin && (
             <>
               <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')}>Leaves</TabButton>
@@ -101,40 +100,10 @@ export const EmployeeProfileModal = ({ user, onClose }: { user: User, onClose: (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <DetailCard icon={<Mail />} label="Email" value={user.email} />
               <DetailCard icon={<Calendar />} label="Joining Date" value={user.joiningDate || 'Not set'} />
-              <DetailCard icon={<Calendar />} label="Date of Birth" value={user.dob || 'Not set'} />
+              <DetailCard icon={<Calendar />} label="Birthday" value={user.birthday || 'Not set'} />
               <DetailCard icon={<Briefcase />} label="Designation" value={user.designation || 'Not set'} />
               {user.isIntern && <DetailCard icon={<Briefcase />} label="Internship Status" value="Currently in Internship Program" />}
               {user.creditedLeaves ? <DetailCard icon={<CheckCircle2 />} label="Credited Leaves" value={`${user.creditedLeaves} days`} /> : null}
-              {user.wfhEnabled && user.wfhQuota !== undefined ? <DetailCard icon={<MapPin />} label="Custom WFH Quota" value={`${user.wfhQuota} days`} /> : null}
-            </div>
-          )}
-
-          {activeTab === 'journey' && (
-            <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-stone-300 before:to-transparent">
-              {(user.journey || []).length === 0 ? (
-                <div className="text-center text-stone-500 py-8 italic">No journey events recorded yet.</div>
-              ) : (
-                (user.journey || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((event, index) => (
-                  <div key={event.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-orange-100 text-orange-600 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
-                      <Briefcase size={16} />
-                    </div>
-                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-2xl shadow-sm border border-stone-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-bold text-stone-800">{event.type}</h4>
-                        <time className="text-xs font-medium text-stone-500">{new Date(event.date).toLocaleDateString()}</time>
-                      </div>
-                      <p className="text-sm text-stone-600">{event.description}</p>
-                      {event.newDesignation && (
-                        <div className="mt-2 text-xs font-bold text-orange-600 bg-orange-50 inline-block px-2 py-1 rounded-md">
-                          {event.oldDesignation && <span className="line-through text-stone-400 mr-1">{event.oldDesignation}</span>}
-                          {event.newDesignation}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           )}
 

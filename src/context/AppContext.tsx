@@ -22,6 +22,16 @@ export interface User {
   wfhEnabled?: boolean;
   creditedLeaves?: number;
   isIntern?: boolean;
+  birthday?: string;
+  anniversary?: string;
+}
+
+export interface AdminNote {
+  id: string;
+  content: string;
+  expiryDate: string;
+  createdAt: string;
+  createdBy: string;
 }
 
 export interface Team {
@@ -67,6 +77,7 @@ export interface ReviewCycle {
   id: string;
   title: string;
   type: 'Manager-to-Junior' | 'Peer-to-Peer' | 'Organization';
+  targetTeamIds?: string[];
   questions: string[];
   deadline: string;
   status: 'Active' | 'Closed';
@@ -92,6 +103,7 @@ interface AppContextType {
   documents: DocumentItem[];
   reviewCycles: ReviewCycle[];
   reviewSubmissions: ReviewSubmission[];
+  adminNotes: AdminNote[];
   addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<void>;
   updateUser: (id: string, user: Partial<User> & { password?: string }) => Promise<void>;
   addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -106,6 +118,8 @@ interface AppContextType {
   addReviewCycle: (cycle: Omit<ReviewCycle, 'id'>) => Promise<void>;
   updateReviewCycle: (id: string, updates: Partial<ReviewCycle>) => Promise<void>;
   addReviewSubmission: (submission: Omit<ReviewSubmission, 'id'>) => Promise<void>;
+  addAdminNote: (note: Omit<AdminNote, 'id'>) => Promise<void>;
+  deleteAdminNote: (id: string) => Promise<void>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
 }
@@ -122,6 +136,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [reviewCycles, setReviewCycles] = useState<ReviewCycle[]>([]);
   const [reviewSubmissions, setReviewSubmissions] = useState<ReviewSubmission[]>([]);
+  const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -131,6 +146,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLeaves([]);
       setHolidays([]);
       setDocuments([]);
+      setAdminNotes([]);
       return;
     }
 
@@ -170,6 +186,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setReviewSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReviewSubmission)));
     }, (error) => console.error("Error fetching review submissions:", error));
 
+    const unsubAdminNotes = onSnapshot(collection(db, 'adminNotes'), (snapshot) => {
+      setAdminNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminNote)));
+    }, (error) => console.error("Error fetching admin notes:", error));
+
     setIsLoading(false);
 
     return () => {
@@ -181,6 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubDocuments();
       unsubReviewCycles();
       unsubReviewSubmissions();
+      unsubAdminNotes();
     };
   }, [user]);
 
@@ -232,14 +253,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addReviewSubmission = async (s: Omit<ReviewSubmission, 'id'>) => {
     await api.addReviewSubmission(s);
   };
+  const addAdminNote = async (n: Omit<AdminNote, 'id'>) => {
+    await api.addAdminNote(n);
+  };
+  const deleteAdminNote = async (id: string) => {
+    await api.deleteAdminNote(id);
+  };
 
   return (
     <AppContext.Provider value={{ 
-      users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions,
+      users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes,
       addUser, updateUser, addTeam, updateTeam, 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
       addReviewCycle, updateReviewCycle, addReviewSubmission,
+      addAdminNote, deleteAdminNote,
       isLoading, refreshData: loadData 
     }}>
       {children}

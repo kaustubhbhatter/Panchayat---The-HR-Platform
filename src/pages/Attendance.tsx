@@ -25,6 +25,11 @@ export const Attendance = () => {
     if (l.status !== 'Pending') return false;
     if (new Date(l.startDate).getFullYear() !== selectedYear) return false;
     if (user?.role === 'Admin') return true;
+    
+    // Check if current user is the manager of the requester
+    if (l.managerId === user?.id) return true;
+    
+    // Fallback for older leaves or team-based management
     const requestor = users.find(u => u.id === l.userId);
     if (!requestor) return false;
     if (requestor.managerId === user?.id) return true;
@@ -38,11 +43,14 @@ export const Attendance = () => {
     if (!newLeave.startDate || !newLeave.endDate) return;
     await addLeave({
       userId: user!.id,
+      userName: user!.name,
+      managerId: user!.managerId || null,
       startDate: newLeave.startDate,
       endDate: newLeave.endDate,
       type: newLeave.type,
       reason: newLeave.reason,
-      status: 'Pending'
+      status: 'Pending',
+      createdAt: new Date().toISOString()
     });
     setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '' });
     setActiveTab('my-leaves');

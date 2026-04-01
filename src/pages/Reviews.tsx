@@ -13,11 +13,18 @@ export const Reviews = () => {
 
   // Admin Setup State
   const [isCreating, setIsCreating] = useState(false);
-  const [newCycle, setNewCycle] = useState({
+  const [newCycle, setNewCycle] = useState<{
+    title: string;
+    type: ReviewCycle['type'];
+    deadline: string;
+    questions: string[];
+    targetTeamIds: string[];
+  }>({
     title: '',
-    type: 'Organization' as ReviewCycle['type'],
+    type: 'Organization',
     deadline: '',
-    questions: ['']
+    questions: [''],
+    targetTeamIds: []
   });
 
   // Review Form State
@@ -32,6 +39,12 @@ export const Reviews = () => {
     const activeCycles = reviewCycles.filter(c => c.status === 'Active');
     
     activeCycles.forEach(cycle => {
+      // If cycle has targetTeamIds, check if user is in any of those teams
+      if (cycle.targetTeamIds && cycle.targetTeamIds.length > 0) {
+        const isUserInTargetTeam = user.teamIds?.some(tid => cycle.targetTeamIds?.includes(tid));
+        if (!isUserInTargetTeam) return;
+      }
+
       if (cycle.type === 'Organization') {
         const hasSubmitted = reviewSubmissions.some(s => s.cycleId === cycle.id && s.reviewerId === user.id);
         if (!hasSubmitted) pending.push({ cycle, revieweeId: null, revieweeName: 'Overall Organization' });
@@ -77,6 +90,7 @@ export const Reviews = () => {
     await addReviewCycle({
       title: newCycle.title,
       type: newCycle.type,
+      targetTeamIds: newCycle.targetTeamIds,
       deadline: newCycle.deadline,
       questions: newCycle.questions.filter(q => q.trim() !== ''),
       status: 'Active',
@@ -85,7 +99,7 @@ export const Reviews = () => {
     });
     
     setIsCreating(false);
-    setNewCycle({ title: '', type: 'Organization', deadline: '', questions: [''] });
+    setNewCycle({ title: '', type: 'Organization', deadline: '', questions: [''], targetTeamIds: [] });
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -305,6 +319,27 @@ export const Reviews = () => {
                         value={newCycle.deadline}
                         onChange={e => setNewCycle({...newCycle, deadline: e.target.value})}
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-stone-700 mb-2">Target Teams (Optional - Leave empty for all)</label>
+                      <div className="flex flex-wrap gap-2 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+                        {teams.map(team => (
+                          <label key={team.id} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 rounded-lg cursor-pointer hover:border-orange-300 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={newCycle.targetTeamIds.includes(team.id)}
+                              onChange={() => {
+                                const ids = newCycle.targetTeamIds.includes(team.id)
+                                  ? newCycle.targetTeamIds.filter(id => id !== team.id)
+                                  : [...newCycle.targetTeamIds, team.id];
+                                setNewCycle({...newCycle, targetTeamIds: ids});
+                              }}
+                              className="w-4 h-4 text-orange-600 rounded border-stone-300 focus:ring-orange-500"
+                            />
+                            <span className="text-sm font-medium text-stone-700">{team.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-stone-700 mb-2">Questions Template</label>
