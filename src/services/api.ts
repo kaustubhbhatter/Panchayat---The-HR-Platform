@@ -1,4 +1,4 @@
-import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission } from '../context/AppContext';
+import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote } from '../context/AppContext';
 import { db, auth, firebaseConfig, storage } from '../firebase';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -267,6 +267,23 @@ export const api = {
       return { id: docRef.id, ...submission } as ReviewSubmission;
     } catch (error) {
       return handleFirestoreError(error, 'addReviewSubmission');
+    }
+  },
+
+  addAdminNote: async (note: Omit<AdminNote, 'id'>): Promise<AdminNote> => {
+    try {
+      const docRef = await addDoc(collection(db, 'adminNotes'), note);
+      return { id: docRef.id, ...note } as AdminNote;
+    } catch (error) {
+      return handleFirestoreError(error, 'addAdminNote');
+    }
+  },
+
+  deleteAdminNote: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'adminNotes', id));
+    } catch (error) {
+      return handleFirestoreError(error, 'deleteAdminNote');
     }
   },
 

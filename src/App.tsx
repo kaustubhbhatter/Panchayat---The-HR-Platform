@@ -9,8 +9,7 @@ import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
-import { Users } from './pages/Users';
-import { Teams } from './pages/Teams';
+import { Sabha } from './pages/Sabha';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { Attendance } from './pages/Attendance';
@@ -48,8 +47,7 @@ const AppRoutes = () => {
         }
       >
         <Route index element={<Dashboard />} />
-        <Route path="users" element={<Users />} />
-        <Route path="teams" element={<Teams />} />
+        <Route path="sabha" element={<Sabha />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="admin" element={<Admin />} />

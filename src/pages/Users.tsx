@@ -30,7 +30,7 @@ export const Users = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Directory</h1>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Sabha - Directory</h1>
           <p className="text-sm text-slate-500 mt-1">Manage your team members and their roles.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -139,7 +139,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    role: user?.role || 'Employee' as Role,
+    role: user?.role || 'IC' as Role,
     teamIds: user?.teamIds || [],
     managerId: user?.managerId || '',
     status: user?.status || 'Active',
@@ -164,7 +164,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         const updates: any = { ...formData };
         if (!updates.password) delete updates.password;
         // Remove empty optional fields to satisfy Firestore rules
-        if (!updates.managerId) delete updates.managerId;
+        if (!updates.managerId || updates.role === 'Admin') updates.managerId = null;
         if (!updates.joiningDate) delete updates.joiningDate;
         if (!updates.internshipDate) delete updates.internshipDate;
         if (!updates.conversionDate) delete updates.conversionDate;
@@ -178,7 +178,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         };
         
         // Remove empty optional fields to satisfy Firestore rules
-        if (!newUser.managerId) delete newUser.managerId;
+        if (!newUser.managerId || newUser.role === 'Admin') newUser.managerId = null;
         if (!newUser.joiningDate) delete newUser.joiningDate;
         if (!newUser.internshipDate) delete newUser.internshipDate;
         if (!newUser.conversionDate) delete newUser.conversionDate;
@@ -278,9 +278,8 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                     value={formData.role}
                     onChange={e => setFormData({...formData, role: e.target.value as Role})}
                   >
-                    <option value="Employee">Employee</option>
-                    <option value="Team Lead">Team Lead</option>
-                    <option value="HR">HR</option>
+                    <option value="IC">IC</option>
+                    <option value="Team Leader">Team Leader</option>
                     <option value="Admin">Admin</option>
                   </select>
                 </div>
@@ -301,19 +300,21 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
             {/* Employment & Teams */}
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Employment & Teams</h3>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Manager</label>
-                <select
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
-                  value={formData.managerId}
-                  onChange={e => setFormData({...formData, managerId: e.target.value})}
-                >
-                  <option value="">No Manager</option>
-                  {users.filter(u => u.id !== user?.id).map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                  ))}
-                </select>
-              </div>
+              {formData.role !== 'Admin' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Manager</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    value={formData.managerId}
+                    onChange={e => setFormData({...formData, managerId: e.target.value})}
+                  >
+                    <option value="">No Manager</option>
+                    {users.filter(u => u.id !== user?.id).map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Joining Date</label>

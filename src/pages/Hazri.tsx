@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, ChevronLeft, Ch
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
-export const Attendance = () => {
+export const Hazri = () => {
   const { leaves, addLeave, updateLeave, holidays, settings, users, teams } = useAppContext();
   const { user } = useAuth();
   
@@ -18,13 +18,13 @@ export const Attendance = () => {
 
   const isManager = users.some(u => u.managerId === user?.id) || 
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
-                    user?.role === 'Admin';
+                    user?.role === 'Admin' || user?.role === 'HR';
   
   const myLeaves = leaves.filter(l => l.userId === user?.id && new Date(l.startDate).getFullYear() === selectedYear);
   const pendingRequests = leaves.filter(l => {
     if (l.status !== 'Pending') return false;
     if (new Date(l.startDate).getFullYear() !== selectedYear) return false;
-    if (user?.role === 'Admin') return true;
+    if (user?.role === 'Admin' || user?.role === 'HR') return true;
     const requestor = users.find(u => u.id === l.userId);
     if (!requestor) return false;
     if (requestor.managerId === user?.id) return true;
@@ -114,13 +114,13 @@ export const Attendance = () => {
   const currentUserData = users.find(u => u.id === user?.id);
   const creditedLeaves = currentUserData?.creditedLeaves || 0;
   const totalLeaveQuota = settings.defaultLeaveQuota + creditedLeaves;
-  const totalWfhQuota = settings.defaultWfhQuota || 10;
+  const totalWfhQuota = currentUserData?.wfhQuota ?? settings.defaultWfhQuota ?? 10;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Hazri (Attendance & Leaves)</h2>
+          <h2 className="text-2xl font-bold text-slate-800">Attendance & Leaves</h2>
           <p className="text-slate-500">Manage your time off and view team availability.</p>
         </div>
         <div className="flex items-center gap-4">

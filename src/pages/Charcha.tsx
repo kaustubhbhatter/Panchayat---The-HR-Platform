@@ -3,13 +3,13 @@ import { useAppContext, ReviewCycle, ReviewSubmission } from '../context/AppCont
 import { useAuth } from '../context/AuthContext';
 import { Plus, CheckCircle2, Clock, MessageSquare, Users, Building, Calendar } from 'lucide-react';
 
-export const Reviews = () => {
+export const Charcha = () => {
   const { users, teams, reviewCycles, reviewSubmissions, addReviewCycle, addReviewSubmission } = useAppContext();
   const { user } = useAuth();
   
   const [activeTab, setActiveTab] = useState<'pending' | 'past' | 'admin'>('pending');
   
-  const isManagerOrAdmin = user?.role === 'Admin' || user?.role === 'Team Leader' || users.some(u => u.managerId === user?.id);
+  const isManagerOrAdmin = user?.role === 'Admin' || user?.role === 'HR' || user?.role === 'Team Lead' || users.some(u => u.managerId === user?.id);
 
   // Admin Setup State
   const [isCreating, setIsCreating] = useState(false);
@@ -114,7 +114,7 @@ export const Reviews = () => {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-stone-800">Charcha (360° Reviews)</h2>
+          <h2 className="text-2xl font-bold text-stone-800">360° Reviews</h2>
           <p className="text-stone-500">Provide and manage feedback across the Panchayat.</p>
         </div>
         <div className="flex gap-2 bg-white p-1 rounded-xl border border-stone-200 shadow-sm">

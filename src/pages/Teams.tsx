@@ -13,10 +13,10 @@ export const Teams = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Teams</h1>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Sabha - Teams</h1>
           <p className="text-slate-500 font-medium mt-1">Organize your company into functional groups.</p>
         </div>
-        {(currentUser?.role === 'Admin' || currentUser?.role === 'HR') && (
+        {currentUser?.role === 'Admin' && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-sm shadow-rose-500/20"
@@ -206,7 +206,7 @@ const TeamDetailsModal = ({ team, onClose }: { team: Team, onClose: () => void }
               <h2 className="text-3xl font-black text-white">{team.name}</h2>
               <p className="text-white/80 mt-1">{team.description}</p>
             </div>
-            {(currentUser?.role === 'Admin' || currentUser?.role === 'HR') && (
+            {currentUser?.role === 'Admin' && (
               <button 
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-xl font-medium transition-colors"

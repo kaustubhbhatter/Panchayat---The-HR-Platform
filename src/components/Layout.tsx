@@ -22,19 +22,18 @@ export const Layout = () => {
             <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm border border-orange-100">
               <TreeDeciduous size={24} strokeWidth={2.5} />
             </div>
-            <span className="text-2xl font-black tracking-tight text-stone-900">Panchayat.</span>
+            <span className="text-2xl font-black tracking-tight text-stone-900">Panchayat</span>
           </div>
         </div>
 
         <nav className="flex-1 px-4 py-8 space-y-2">
           <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
-          <NavItem to="/users" icon={<Users size={20} />} label="Directory" />
-          <NavItem to="/teams" icon={<UsersRound size={20} />} label="Teams" />
-          <NavItem to="/attendance" icon={<Calendar size={20} />} label="Attendance" />
-          <NavItem to="/reviews" icon={<MessageSquare size={20} />} label="360° Review" />
-          <NavItem to="/documents" icon={<FileText size={20} />} label="Documents" />
-          {(user?.role === 'Admin' || user?.role === 'HR') && (
-            <NavItem to="/admin" icon={<Settings size={20} />} label="Admin" />
+          <NavItem to="/sabha" icon={<Users size={20} />} label="Sabha" />
+          <NavItem to="/attendance" icon={<Calendar size={20} />} label="Hazri" />
+          <NavItem to="/reviews" icon={<MessageSquare size={20} />} label="Charcha" />
+          <NavItem to="/documents" icon={<FileText size={20} />} label="Khaata" />
+          {user?.role === 'Admin' && (
+            <NavItem to="/admin" icon={<Settings size={20} />} label="Sarpanch" />
           )}
         </nav>
       </aside>

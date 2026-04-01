@@ -52,7 +52,7 @@ export const Admin = () => {
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">Admin Settings</h2>
+        <h2 className="text-2xl font-bold text-slate-800">Sarpanch (Admin Settings)</h2>
         <p className="text-slate-500">Configure global application settings and policies.</p>
       </div>
 

@@ -34,7 +34,7 @@ export const Login = () => {
           <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm border border-orange-100">
             <TreeDeciduous size={28} strokeWidth={2.5} />
           </div>
-          <span className="text-3xl font-black tracking-tight text-stone-900">Panchayat.</span>
+          <span className="text-3xl font-black tracking-tight text-stone-900">Panchayat</span>
         </div>
         <h2 className="mt-6 text-center text-3xl font-black text-stone-900 tracking-tight">
           Sign in to your account

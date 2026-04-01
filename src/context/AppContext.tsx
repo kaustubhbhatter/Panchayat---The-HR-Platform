@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
 
-export type Role = 'Admin' | 'HR' | 'Team Lead' | 'Employee';
+export type Role = 'Admin' | 'Team Leader' | 'IC';
 
 export interface User {
   id: string;

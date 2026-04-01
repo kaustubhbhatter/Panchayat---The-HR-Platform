@@ -15,9 +15,9 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAdminOrHR() {
+    function isAdmin() {
       return isAuthenticated() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'HR'] ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
         (request.auth.token.email == "bhatter.kaustubh@gmail.com" && request.auth.token.email_verified == true)
       );
     }
@@ -60,7 +60,7 @@ service cloud.firestore {
       let data = request.resource.data;
       return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
-             data.role in ['Admin', 'HR', 'Team Lead', 'Employee'] &&
+             data.role in ['Admin', 'Team Leader', 'IC'] &&
              data.teamIds is list && data.teamIds.size() <= 20 &&
              data.avatar is string && data.avatar.size() <= 1000 &&
              data.status in ['Active', 'Inactive'] &&
@@ -140,68 +140,68 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrHR() && isValidUser();
+      allow create: if isAdmin() && isValidUser();
       allow update: if isAuthenticated() && isValidUser() && (
-        isAdminOrHR() || 
+        isAdmin() || 
         (isOwner(userId) && areImmutableFieldsUnchanged(['role', 'status', 'email']))
       );
-      allow delete: if isAdminOrHR();
+      allow delete: if isAdmin();
     }
 
     match /teams/{teamId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrHR() && isValidTeam();
-      allow update: if isAdminOrHR() && isValidTeam();
-      allow delete: if isAdminOrHR();
+      allow create: if isAdmin() && isValidTeam();
+      allow update: if isAdmin() && isValidTeam();
+      allow delete: if isAdmin();
     }
 
     match /leaves/{leaveId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidLeaveRequest() && request.resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() && isValidLeaveRequest() && (
-        isAdminOrHR() || 
+        isAdmin() || 
         isManagerOf(resource.data.userId) ||
         (request.resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['status']))
       );
       allow delete: if isAuthenticated() && (
-        isAdminOrHR() || 
+        isAdmin() || 
         (resource.data.userId == request.auth.uid && resource.data.status == 'Pending')
       );
     }
 
     match /holidays/{holidayId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrHR() && isValidHoliday();
-      allow update: if isAdminOrHR() && isValidHoliday();
-      allow delete: if isAdminOrHR();
+      allow create: if isAdmin() && isValidHoliday();
+      allow update: if isAdmin() && isValidHoliday();
+      allow delete: if isAdmin();
     }
 
     match /settings/global {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrHR() && isValidSettings();
-      allow update: if isAdminOrHR() && isValidSettings();
+      allow create: if isAdmin() && isValidSettings();
+      allow update: if isAdmin() && isValidSettings();
       allow delete: if false; // Settings should not be deleted
     }
 
     match /documents/{documentId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrHR() && isValidDocument();
-      allow update: if isAdminOrHR() && isValidDocument();
-      allow delete: if isAdminOrHR();
+      allow create: if isAdmin() && isValidDocument();
+      allow update: if isAdmin() && isValidDocument();
+      allow delete: if isAdmin();
     }
 
     match /reviewCycles/{cycleId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidReviewCycle();
       allow update: if isAuthenticated() && isValidReviewCycle();
-      allow delete: if isAdminOrHR();
+      allow delete: if isAdmin();
     }
 
     match /reviewSubmissions/{submissionId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidReviewSubmission() && request.resource.data.reviewerId == request.auth.uid;
       allow update: if false; // Reviews cannot be updated once submitted
-      allow delete: if isAdminOrHR();
+      allow delete: if isAdmin();
     }
   }
 }
