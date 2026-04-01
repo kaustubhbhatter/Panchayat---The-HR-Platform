@@ -114,6 +114,26 @@ service cloud.firestore {
              data.addedBy is string && data.addedBy.size() > 0 && data.addedBy.size() < 100;
     }
 
+    function isValidReviewCycle() {
+      let data = request.resource.data;
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.type in ['Manager-to-Junior', 'Peer-to-Peer', 'Organization'] &&
+             data.questions is list && data.questions.size() <= 50 &&
+             data.deadline is string && data.deadline.size() <= 50 &&
+             data.status in ['Active', 'Closed'] &&
+             data.createdBy is string && data.createdBy.size() <= 100 &&
+             data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    function isValidReviewSubmission() {
+      let data = request.resource.data;
+      return data.cycleId is string && data.cycleId.size() <= 100 &&
+             data.reviewerId is string && data.reviewerId.size() <= 100 &&
+             (data.revieweeId == null || (data.revieweeId is string && data.revieweeId.size() <= 100)) &&
+             data.answers is map &&
+             data.submittedAt is string && data.submittedAt.size() <= 50;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -167,6 +187,20 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAdminOrHR() && isValidDocument();
       allow update: if isAdminOrHR() && isValidDocument();
+      allow delete: if isAdminOrHR();
+    }
+
+    match /reviewCycles/{cycleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidReviewCycle();
+      allow update: if isAuthenticated() && isValidReviewCycle();
+      allow delete: if isAdminOrHR();
+    }
+
+    match /reviewSubmissions/{submissionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidReviewSubmission() && request.resource.data.reviewerId == request.auth.uid;
+      allow update: if false; // Reviews cannot be updated once submitted
       allow delete: if isAdminOrHR();
     }
   }

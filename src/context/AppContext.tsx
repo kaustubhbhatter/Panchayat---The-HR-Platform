@@ -63,6 +63,26 @@ export interface DocumentItem {
   addedBy: string;
 }
 
+export interface ReviewCycle {
+  id: string;
+  title: string;
+  type: 'Manager-to-Junior' | 'Peer-to-Peer' | 'Organization';
+  questions: string[];
+  deadline: string;
+  status: 'Active' | 'Closed';
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ReviewSubmission {
+  id: string;
+  cycleId: string;
+  reviewerId: string;
+  revieweeId: string | null;
+  answers: Record<string, string>;
+  submittedAt: string;
+}
+
 interface AppContextType {
   users: User[];
   teams: Team[];
@@ -70,6 +90,8 @@ interface AppContextType {
   holidays: Holiday[];
   settings: AppSettings;
   documents: DocumentItem[];
+  reviewCycles: ReviewCycle[];
+  reviewSubmissions: ReviewSubmission[];
   addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<void>;
   updateUser: (id: string, user: Partial<User> & { password?: string }) => Promise<void>;
   addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -81,6 +103,9 @@ interface AppContextType {
   updateSettings: (settings: AppSettings) => Promise<void>;
   addDocument: (doc: Omit<DocumentItem, 'id'>) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
+  addReviewCycle: (cycle: Omit<ReviewCycle, 'id'>) => Promise<void>;
+  updateReviewCycle: (id: string, updates: Partial<ReviewCycle>) => Promise<void>;
+  addReviewSubmission: (submission: Omit<ReviewSubmission, 'id'>) => Promise<void>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
 }
@@ -95,6 +120,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ defaultLeaveQuota: 20, defaultWfhQuota: 10 });
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [reviewCycles, setReviewCycles] = useState<ReviewCycle[]>([]);
+  const [reviewSubmissions, setReviewSubmissions] = useState<ReviewSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -135,6 +162,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDocuments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentItem)));
     }, (error) => console.error("Error fetching documents:", error));
 
+    const unsubReviewCycles = onSnapshot(collection(db, 'reviewCycles'), (snapshot) => {
+      setReviewCycles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReviewCycle)));
+    }, (error) => console.error("Error fetching review cycles:", error));
+
+    const unsubReviewSubmissions = onSnapshot(collection(db, 'reviewSubmissions'), (snapshot) => {
+      setReviewSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReviewSubmission)));
+    }, (error) => console.error("Error fetching review submissions:", error));
+
     setIsLoading(false);
 
     return () => {
@@ -144,6 +179,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubHolidays();
       unsubSettings();
       unsubDocuments();
+      unsubReviewCycles();
+      unsubReviewSubmissions();
     };
   }, [user]);
 
@@ -186,13 +223,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteDocument = async (id: string) => {
     await api.deleteDocument(id);
   };
+  const addReviewCycle = async (c: Omit<ReviewCycle, 'id'>) => {
+    await api.addReviewCycle(c);
+  };
+  const updateReviewCycle = async (id: string, updates: Partial<ReviewCycle>) => {
+    await api.updateReviewCycle(id, updates);
+  };
+  const addReviewSubmission = async (s: Omit<ReviewSubmission, 'id'>) => {
+    await api.addReviewSubmission(s);
+  };
 
   return (
     <AppContext.Provider value={{ 
-      users, teams, leaves, holidays, settings, documents,
+      users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions,
       addUser, updateUser, addTeam, updateTeam, 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
+      addReviewCycle, updateReviewCycle, addReviewSubmission,
       isLoading, refreshData: loadData 
     }}>
       {children}

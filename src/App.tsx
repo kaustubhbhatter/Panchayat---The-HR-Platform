@@ -16,6 +16,7 @@ import { ResetPassword } from './pages/ResetPassword';
 import { Attendance } from './pages/Attendance';
 import { Admin } from './pages/Admin';
 import { Documents } from './pages/Documents';
+import { Reviews } from './pages/Reviews';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -50,6 +51,7 @@ const AppRoutes = () => {
         <Route path="users" element={<Users />} />
         <Route path="teams" element={<Teams />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="reviews" element={<Reviews />} />
         <Route path="admin" element={<Admin />} />
         <Route path="documents" element={<Documents />} />
       </Route>

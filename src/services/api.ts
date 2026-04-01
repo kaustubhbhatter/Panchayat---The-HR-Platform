@@ -1,4 +1,4 @@
-import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem } from '../context/AppContext';
+import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission } from '../context/AppContext';
 import { db, auth, firebaseConfig, storage } from '../firebase';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -241,6 +241,32 @@ export const api = {
       await deleteDoc(doc(db, 'documents', id));
     } catch (error) {
       return handleFirestoreError(error, 'deleteDocument');
+    }
+  },
+
+  addReviewCycle: async (cycle: Omit<ReviewCycle, 'id'>): Promise<ReviewCycle> => {
+    try {
+      const docRef = await addDoc(collection(db, 'reviewCycles'), cycle);
+      return { id: docRef.id, ...cycle } as ReviewCycle;
+    } catch (error) {
+      return handleFirestoreError(error, 'addReviewCycle');
+    }
+  },
+
+  updateReviewCycle: async (id: string, updates: Partial<ReviewCycle>): Promise<void> => {
+    try {
+      await updateDoc(doc(db, 'reviewCycles', id), updates);
+    } catch (error) {
+      return handleFirestoreError(error, 'updateReviewCycle');
+    }
+  },
+
+  addReviewSubmission: async (submission: Omit<ReviewSubmission, 'id'>): Promise<ReviewSubmission> => {
+    try {
+      const docRef = await addDoc(collection(db, 'reviewSubmissions'), submission);
+      return { id: docRef.id, ...submission } as ReviewSubmission;
+    } catch (error) {
+      return handleFirestoreError(error, 'addReviewSubmission');
     }
   },
 
