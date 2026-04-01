@@ -24,7 +24,7 @@ export const Sarpanch = () => {
     setTimeout(() => setError(''), 5000);
   };
   
-  const [newNote, setNewNote] = useState({ message: '', expiryDate: '' });
+  const [newNote, setNewNote] = useState({ content: '', expiryDate: '' });
   const [promotion, setPromotion] = useState({ userId: '', newDesignation: '', date: new Date().toISOString().split('T')[0], description: '' });
 
   const handleSaveSettings = async () => {
@@ -79,14 +79,19 @@ export const Sarpanch = () => {
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNote.message || !newNote.expiryDate || !user) return;
-    await addAdminNote({
-      message: newNote.message,
-      expiryDate: newNote.expiryDate,
-      createdBy: user.id,
-      createdAt: new Date().toISOString()
-    });
-    setNewNote({ message: '', expiryDate: '' });
+    if (!newNote.content || !newNote.expiryDate || !user) return;
+    try {
+      await addAdminNote({
+        content: newNote.content,
+        expiryDate: newNote.expiryDate,
+        createdBy: user.id,
+        createdAt: new Date().toISOString()
+      });
+      setNewNote({ content: '', expiryDate: '' });
+      showMessage('Announcement posted successfully!');
+    } catch (err) {
+      showError('Failed to post announcement. Please check permissions.');
+    }
   };
 
   const handlePromote = async (e: React.FormEvent) => {
@@ -145,19 +150,19 @@ export const Sarpanch = () => {
         <div className="p-6 border-b border-stone-100">
           <h3 className="text-lg font-bold text-stone-800 flex items-center gap-2">
             <Megaphone size={20} className="text-orange-500" />
-            Panchayat Announcements
+            Admin Notes
           </h3>
-          <p className="text-sm text-stone-500 mt-1">Add a note for everyone to see on their dashboard.</p>
+          <p className="text-sm text-stone-500 mt-1">Add notes or announcements for the dashboard.</p>
         </div>
         <div className="p-6 border-b border-stone-50 bg-stone-50/50">
           <form onSubmit={handleAddNote} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Message</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Note Content</label>
               <textarea
                 required
-                value={newNote.message}
-                onChange={e => setNewNote({...newNote, message: e.target.value})}
-                placeholder="Enter announcement..."
+                value={newNote.content}
+                onChange={e => setNewNote({...newNote, content: e.target.value})}
+                placeholder="e.g., Office closed for maintenance on Friday"
                 className="w-full px-4 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-500 min-h-[80px]"
               />
             </div>
@@ -177,7 +182,7 @@ export const Sarpanch = () => {
                 className="flex items-center gap-2 px-6 py-2 bg-stone-800 text-white rounded-xl hover:bg-stone-900 transition-colors"
               >
                 <Plus size={20} />
-                Post Note
+                Add Note
               </button>
             </div>
           </form>
@@ -186,7 +191,7 @@ export const Sarpanch = () => {
           {adminNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
             <div key={note.id} className="p-4 px-6 flex items-start justify-between hover:bg-stone-50 transition-colors">
               <div>
-                <p className="font-bold text-stone-800">{note.message}</p>
+                <p className="font-bold text-stone-800">{note.content}</p>
                 <p className="text-sm text-stone-500">Expires: {new Date(note.expiryDate).toLocaleDateString()}</p>
               </div>
               <button
@@ -198,7 +203,7 @@ export const Sarpanch = () => {
             </div>
           ))}
           {adminNotes.length === 0 && (
-            <div className="p-8 text-center text-stone-500">No active announcements.</div>
+            <div className="p-8 text-center text-stone-500">No active admin notes.</div>
           )}
         </div>
       </div>

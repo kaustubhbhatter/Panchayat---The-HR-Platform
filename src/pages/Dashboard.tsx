@@ -4,16 +4,39 @@ import { useAuth } from '../context/AuthContext';
 import { Users, Briefcase, TrendingUp, Calendar, Gift, Award, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const Dashboard = () => {
-  const { users, teams, leaves, adminNotes } = useAppContext();
+  const { users, teams, leaves, adminNotes, holidays } = useAppContext();
   const { user } = useAuth();
-  const [notePage, setNotePage] = useState(0);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Upcoming Leaves (next 30 days)
-  const upcomingLeaves = leaves
-    .filter(l => l.status === 'Approved' && new Date(l.startDate) >= today)
+  // Upcoming Holidays & Leaves (next 30 days)
+  const upcomingHolidays = [
+    ...holidays.map(h => ({
+      id: h.id,
+      type: 'Public Holiday',
+      name: h.name,
+      startDate: h.date,
+      endDate: h.date,
+      isHoliday: true
+    })),
+    ...leaves
+      .filter(l => l.status === 'Approved')
+      .map(l => ({
+        id: l.id,
+        type: l.type,
+        userId: l.userId,
+        startDate: l.startDate,
+        endDate: l.endDate,
+        isHoliday: false
+      }))
+  ]
+    .filter(item => {
+      const date = new Date(item.startDate);
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+      return date >= today && date <= thirtyDaysFromNow;
+    })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, 5);
 
@@ -52,64 +75,12 @@ export const Dashboard = () => {
     .filter(n => new Date(n.expiryDate) >= today)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const notesPerPage = 1;
-  const totalNotePages = Math.ceil(activeNotes.length / notesPerPage);
-  const currentNotes = activeNotes.slice(notePage * notesPerPage, (notePage + 1) * notesPerPage);
-
-  const nextNotePage = () => setNotePage(p => Math.min(totalNotePages - 1, p + 1));
-  const prevNotePage = () => setNotePage(p => Math.max(0, p - 1));
-
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-black text-stone-800 tracking-tight">Welcome back, {user?.name.split(' ')[0]}! 👋</h1>
         <p className="text-stone-500 mt-1 font-medium">Here's what's happening in your Panchayat today.</p>
       </div>
-
-      {/* Admin Notes */}
-      {activeNotes.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 shadow-sm relative">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
-              <MessageSquare size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-amber-900">Announcements</h3>
-          </div>
-          
-          <div className="min-h-[80px]">
-            {currentNotes.map(note => (
-              <div key={note.id} className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-amber-800 font-medium text-lg">{note.content}</p>
-                <p className="text-amber-600/70 text-sm mt-2">
-                  Expires: {new Date(note.expiryDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {totalNotePages > 1 && (
-            <div className="absolute bottom-6 right-6 flex items-center gap-2">
-              <button 
-                onClick={prevNotePage} 
-                disabled={notePage === 0}
-                className="p-1.5 rounded-lg hover:bg-amber-200/50 disabled:opacity-50 text-amber-700 transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <span className="text-sm font-medium text-amber-700/70">
-                {notePage + 1} / {totalNotePages}
-              </span>
-              <button 
-                onClick={nextNotePage} 
-                disabled={notePage === totalNotePages - 1}
-                className="p-1.5 rounded-lg hover:bg-amber-200/50 disabled:opacity-50 text-amber-700 transition-colors"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -127,49 +98,85 @@ export const Dashboard = () => {
           trend="+2 new teams"
           color="bg-rose-50"
         />
-        <StatCard
-          title="Avg. Performance"
-          value="94%"
-          icon={<TrendingUp size={24} className="text-emerald-500" />}
-          trend="+4% from last quarter"
-          color="bg-emerald-50"
-        />
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col group hover:shadow-md transition-shadow h-full min-h-[160px]">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-stone-500 font-medium text-sm">Panchayat Notes</p>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+              <MessageSquare size={20} />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+            {activeNotes.length > 0 ? (
+              <div className="space-y-3">
+                {activeNotes.map(note => (
+                  <div key={note.id} className="border-l-2 border-amber-200 pl-3 py-1">
+                    <p className="text-sm font-bold text-stone-800 line-clamp-2">{note.content}</p>
+                    <p className="text-[10px] text-stone-400 mt-1">
+                      Expires: {new Date(note.expiryDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-stone-400 italic">No active notes.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Leaves */}
+        {/* Upcoming Holidays */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-stone-100">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-blue-50 text-blue-500 rounded-xl">
               <Calendar size={20} />
             </div>
-            <h3 className="text-lg font-bold text-stone-800">Upcoming Leaves</h3>
+            <h3 className="text-lg font-bold text-stone-800">Upcoming Holidays</h3>
           </div>
           
           <div className="space-y-4">
-            {upcomingLeaves.length > 0 ? (
-              upcomingLeaves.map(leave => {
-                const leaveUser = users.find(u => u.id === leave.userId);
+            {upcomingHolidays.length > 0 ? (
+              upcomingHolidays.map(item => {
+                if (item.isHoliday) {
+                  return (
+                    <div key={item.id} className="flex items-center gap-4 p-3 bg-rose-50/50 rounded-2xl border border-rose-100/50">
+                      <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center">
+                        <Calendar size={20} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-stone-800">{item.name}</p>
+                        <p className="text-sm text-rose-600 font-medium">Public Holiday</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-stone-700">
+                          {new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const leaveUser = users.find(u => u.id === item.userId);
                 return (
-                  <div key={leave.id} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors">
+                  <div key={item.id} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors">
                     <img src={leaveUser?.avatar || `https://ui-avatars.com/api/?name=${leaveUser?.name}`} alt={leaveUser?.name} className="w-10 h-10 rounded-full object-cover" />
                     <div className="flex-1">
                       <p className="font-bold text-stone-800">{leaveUser?.name}</p>
-                      <p className="text-sm text-stone-500">{leave.type}</p>
+                      <p className="text-sm text-stone-500">{item.type}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-stone-700">
-                        {new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                       <p className="text-xs text-stone-500">
-                        to {new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        to {new Date(item.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <p className="text-stone-500 text-center py-4">No upcoming leaves in the next 30 days.</p>
+              <p className="text-stone-500 text-center py-4">No upcoming holidays or leaves in the next 30 days.</p>
             )}
           </div>
         </div>

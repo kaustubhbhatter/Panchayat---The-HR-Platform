@@ -25,9 +25,61 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 const secondaryAuth = getAuth(secondaryApp);
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
 // Helper to handle Firestore errors
-const handleFirestoreError = (error: any, operation: string) => {
-  console.error(`Firestore Error (${operation}):`, error);
+export const handleFirestoreError = (error: any, operationType: OperationType, path: string | null) => {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  };
+  
+  if (errInfo.error.includes('insufficient permissions')) {
+    console.error('Firestore Permission Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  }
+  
+  console.error(`Firestore Error (${operationType} on ${path}):`, error);
   throw new Error(error.message || 'An error occurred with the database.');
 };
 
@@ -60,7 +112,7 @@ export const api = {
       const snapshot = await getDocs(collection(db, 'users'));
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
     } catch (error) {
-      return handleFirestoreError(error, 'getUsers');
+      return handleFirestoreError(error, OperationType.LIST, 'users');
     }
   },
 
@@ -69,7 +121,7 @@ export const api = {
       const snapshot = await getDocs(collection(db, 'teams'));
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
     } catch (error) {
-      return handleFirestoreError(error, 'getTeams');
+      return handleFirestoreError(error, OperationType.LIST, 'teams');
     }
   },
 
@@ -96,7 +148,7 @@ export const api = {
       
       return { id: uid, ...userProfile } as User;
     } catch (error) {
-      return handleFirestoreError(error, 'addUser');
+      return handleFirestoreError(error, OperationType.CREATE, 'users');
     }
   },
 
@@ -110,7 +162,7 @@ export const api = {
       const updatedDoc = await getDoc(userRef);
       return { id: updatedDoc.id, ...updatedDoc.data() } as User;
     } catch (error) {
-      return handleFirestoreError(error, 'updateUser');
+      return handleFirestoreError(error, OperationType.UPDATE, `users/${id}`);
     }
   },
 
@@ -119,7 +171,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'teams'), team);
       return { id: docRef.id, ...team } as Team;
     } catch (error) {
-      return handleFirestoreError(error, 'addTeam');
+      return handleFirestoreError(error, OperationType.CREATE, 'teams');
     }
   },
 
@@ -131,7 +183,7 @@ export const api = {
       const updatedDoc = await getDoc(teamRef);
       return { id: updatedDoc.id, ...updatedDoc.data() } as Team;
     } catch (error) {
-      return handleFirestoreError(error, 'updateTeam');
+      return handleFirestoreError(error, OperationType.UPDATE, `teams/${id}`);
     }
   },
 
@@ -140,7 +192,7 @@ export const api = {
       const snapshot = await getDocs(collection(db, 'leaves'));
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveRequest));
     } catch (error) {
-      return handleFirestoreError(error, 'getLeaves');
+      return handleFirestoreError(error, OperationType.LIST, 'leaves');
     }
   },
 
@@ -149,7 +201,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'leaves'), leave);
       return { id: docRef.id, ...leave } as LeaveRequest;
     } catch (error) {
-      return handleFirestoreError(error, 'addLeave');
+      return handleFirestoreError(error, OperationType.CREATE, 'leaves');
     }
   },
 
@@ -161,7 +213,7 @@ export const api = {
       const updatedDoc = await getDoc(leaveRef);
       return { id: updatedDoc.id, ...updatedDoc.data() } as LeaveRequest;
     } catch (error) {
-      return handleFirestoreError(error, 'updateLeave');
+      return handleFirestoreError(error, OperationType.UPDATE, `leaves/${id}`);
     }
   },
 
@@ -170,7 +222,7 @@ export const api = {
       const snapshot = await getDocs(collection(db, 'holidays'));
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Holiday));
     } catch (error) {
-      return handleFirestoreError(error, 'getHolidays');
+      return handleFirestoreError(error, OperationType.LIST, 'holidays');
     }
   },
 
@@ -179,7 +231,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'holidays'), holiday);
       return { id: docRef.id, ...holiday } as Holiday;
     } catch (error) {
-      return handleFirestoreError(error, 'addHoliday');
+      return handleFirestoreError(error, OperationType.CREATE, 'holidays');
     }
   },
 
@@ -187,7 +239,7 @@ export const api = {
     try {
       await deleteDoc(doc(db, 'holidays', id));
     } catch (error) {
-      return handleFirestoreError(error, 'deleteHoliday');
+      return handleFirestoreError(error, OperationType.DELETE, `holidays/${id}`);
     }
   },
 
@@ -205,7 +257,7 @@ export const api = {
       await setDoc(docRef, defaultSettings);
       return defaultSettings;
     } catch (error) {
-      return handleFirestoreError(error, 'getSettings');
+      return handleFirestoreError(error, OperationType.GET, 'settings/global');
     }
   },
 
@@ -214,7 +266,7 @@ export const api = {
       await setDoc(doc(db, 'settings', 'global'), settings);
       return settings;
     } catch (error) {
-      return handleFirestoreError(error, 'updateSettings');
+      return handleFirestoreError(error, OperationType.WRITE, 'settings/global');
     }
   },
 
@@ -223,7 +275,7 @@ export const api = {
       const snapshot = await getDocs(collection(db, 'documents'));
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentItem));
     } catch (error) {
-      return handleFirestoreError(error, 'getDocuments');
+      return handleFirestoreError(error, OperationType.LIST, 'documents');
     }
   },
 
@@ -232,7 +284,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'documents'), document);
       return { id: docRef.id, ...document } as DocumentItem;
     } catch (error) {
-      return handleFirestoreError(error, 'addDocument');
+      return handleFirestoreError(error, OperationType.CREATE, 'documents');
     }
   },
 
@@ -240,7 +292,7 @@ export const api = {
     try {
       await deleteDoc(doc(db, 'documents', id));
     } catch (error) {
-      return handleFirestoreError(error, 'deleteDocument');
+      return handleFirestoreError(error, OperationType.DELETE, `documents/${id}`);
     }
   },
 
@@ -249,7 +301,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'reviewCycles'), cycle);
       return { id: docRef.id, ...cycle } as ReviewCycle;
     } catch (error) {
-      return handleFirestoreError(error, 'addReviewCycle');
+      return handleFirestoreError(error, OperationType.CREATE, 'reviewCycles');
     }
   },
 
@@ -257,7 +309,7 @@ export const api = {
     try {
       await updateDoc(doc(db, 'reviewCycles', id), updates);
     } catch (error) {
-      return handleFirestoreError(error, 'updateReviewCycle');
+      return handleFirestoreError(error, OperationType.UPDATE, `reviewCycles/${id}`);
     }
   },
 
@@ -266,7 +318,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'reviewSubmissions'), submission);
       return { id: docRef.id, ...submission } as ReviewSubmission;
     } catch (error) {
-      return handleFirestoreError(error, 'addReviewSubmission');
+      return handleFirestoreError(error, OperationType.CREATE, 'reviewSubmissions');
     }
   },
 
@@ -275,7 +327,7 @@ export const api = {
       const docRef = await addDoc(collection(db, 'adminNotes'), note);
       return { id: docRef.id, ...note } as AdminNote;
     } catch (error) {
-      return handleFirestoreError(error, 'addAdminNote');
+      return handleFirestoreError(error, OperationType.CREATE, 'adminNotes');
     }
   },
 
@@ -283,7 +335,7 @@ export const api = {
     try {
       await deleteDoc(doc(db, 'adminNotes', id));
     } catch (error) {
-      return handleFirestoreError(error, 'deleteAdminNote');
+      return handleFirestoreError(error, OperationType.DELETE, `adminNotes/${id}`);
     }
   },
 

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../services/api';
+import { api, handleFirestoreError, OperationType } from '../services/api';
 import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
@@ -120,6 +120,7 @@ interface AppContextType {
   addReviewSubmission: (submission: Omit<ReviewSubmission, 'id'>) => Promise<void>;
   addAdminNote: (note: Omit<AdminNote, 'id'>) => Promise<void>;
   deleteAdminNote: (id: string) => Promise<void>;
+  uploadFile: (file: File, path: string) => Promise<string>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
 }
@@ -154,41 +155,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
-    }, (error) => console.error("Error fetching users:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'users'));
 
     const unsubTeams = onSnapshot(collection(db, 'teams'), (snapshot) => {
       setTeams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team)));
-    }, (error) => console.error("Error fetching teams:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'teams'));
 
     const unsubLeaves = onSnapshot(collection(db, 'leaves'), (snapshot) => {
       setLeaves(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveRequest)));
-    }, (error) => console.error("Error fetching leaves:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'leaves'));
 
     const unsubHolidays = onSnapshot(collection(db, 'holidays'), (snapshot) => {
       setHolidays(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Holiday)));
-    }, (error) => console.error("Error fetching holidays:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'holidays'));
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
         setSettings(docSnap.data() as AppSettings);
       }
-    }, (error) => console.error("Error fetching settings:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'settings/global'));
 
     const unsubDocuments = onSnapshot(collection(db, 'documents'), (snapshot) => {
       setDocuments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentItem)));
-    }, (error) => console.error("Error fetching documents:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'documents'));
 
     const unsubReviewCycles = onSnapshot(collection(db, 'reviewCycles'), (snapshot) => {
       setReviewCycles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReviewCycle)));
-    }, (error) => console.error("Error fetching review cycles:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'reviewCycles'));
 
     const unsubReviewSubmissions = onSnapshot(collection(db, 'reviewSubmissions'), (snapshot) => {
       setReviewSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReviewSubmission)));
-    }, (error) => console.error("Error fetching review submissions:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'reviewSubmissions'));
 
     const unsubAdminNotes = onSnapshot(collection(db, 'adminNotes'), (snapshot) => {
       setAdminNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminNote)));
-    }, (error) => console.error("Error fetching admin notes:", error));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'adminNotes'));
 
     setIsLoading(false);
 
@@ -259,6 +260,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteAdminNote = async (id: string) => {
     await api.deleteAdminNote(id);
   };
+  const uploadFile = async (file: File, path: string) => {
+    return await api.uploadFile(file, path);
+  };
 
   return (
     <AppContext.Provider value={{ 
@@ -267,7 +271,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
       addReviewCycle, updateReviewCycle, addReviewSubmission,
-      addAdminNote, deleteAdminNote,
+      addAdminNote, deleteAdminNote, uploadFile,
       isLoading, refreshData: loadData 
     }}>
       {children}

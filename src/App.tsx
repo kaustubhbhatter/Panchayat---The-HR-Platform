@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -13,9 +13,11 @@ import { Sabha } from './pages/Sabha';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { Attendance } from './pages/Attendance';
-import { Admin } from './pages/Admin';
+import { Sarpanch } from './pages/Sarpanch';
 import { Documents } from './pages/Documents';
 import { Reviews } from './pages/Reviews';
+import { db } from './firebase';
+import { doc, getDocFromServer } from 'firebase/firestore';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -50,7 +52,7 @@ const AppRoutes = () => {
         <Route path="sabha" element={<Sabha />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="reviews" element={<Reviews />} />
-        <Route path="admin" element={<Admin />} />
+        <Route path="admin" element={<Sarpanch />} />
         <Route path="documents" element={<Documents />} />
       </Route>
     </Routes>
@@ -58,6 +60,19 @@ const AppRoutes = () => {
 };
 
 export default function App() {
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, 'settings', 'connection-test'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. The client is offline.");
+        }
+      }
+    };
+    testConnection();
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>

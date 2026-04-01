@@ -1,15 +1,45 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Users, UsersRound, LayoutDashboard, Bell, Search, LogOut, Calendar, Settings, FileText, TreeDeciduous, MessageSquare } from 'lucide-react';
+import { Users, UsersRound, LayoutDashboard, Bell, Search, LogOut, Calendar, Settings, FileText, TreeDeciduous, MessageSquare, Camera, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 
 export const Layout = () => {
   const { user, logout } = useAuth();
+  const { uploadFile, updateUser } = useAppContext();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // 2MB Limit
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const url = await uploadFile(file, 'avatars');
+      await updateUser(user.id, { avatar: url });
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -62,7 +92,29 @@ export const Layout = () => {
                   <p className="text-sm font-bold text-stone-700">{user?.name}</p>
                   <p className="text-xs text-stone-500 font-medium">{user?.role}</p>
                 </div>
-                <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}&background=EA580C&color=fff`} alt="Profile" className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
+                <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                  <img 
+                    src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}&background=EA580C&color=fff`} 
+                    alt="Profile" 
+                    className={`w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover transition-opacity ${isUploading ? 'opacity-50' : 'group-hover:opacity-80'}`} 
+                  />
+                  {isUploading ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 size={16} className="text-orange-600 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Camera size={16} className="text-white drop-shadow-md" />
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                </div>
               </div>
               <button 
                 onClick={handleLogout}
