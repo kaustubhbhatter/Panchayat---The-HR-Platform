@@ -86,6 +86,7 @@ export const EmployeeProfileModal = ({ user, onClose }: { user: User, onClose: (
         {/* Tabs */}
         <div className="flex border-b border-stone-100 px-8">
           <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')}>Details</TabButton>
+          <TabButton active={activeTab === 'journey'} onClick={() => setActiveTab('journey')}>Journey</TabButton>
           {isManagerOrAdmin && (
             <>
               <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')}>Leaves</TabButton>
@@ -104,6 +105,38 @@ export const EmployeeProfileModal = ({ user, onClose }: { user: User, onClose: (
               <DetailCard icon={<Briefcase />} label="Designation" value={user.designation || 'Not set'} />
               {user.isIntern && <DetailCard icon={<Briefcase />} label="Internship Status" value="Currently in Internship Program" />}
               {user.creditedLeaves ? <DetailCard icon={<CheckCircle2 />} label="Credited Leaves" value={`${user.creditedLeaves} days`} /> : null}
+            </div>
+          )}
+
+          {activeTab === 'journey' && (
+            <div className="space-y-6">
+              {(!user.journey || user.journey.length === 0) ? (
+                <div className="text-center text-stone-500 py-8 italic">No journey events recorded yet.</div>
+              ) : (
+                <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
+                  {user.journey.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((event: any) => (
+                    <div key={event.id} className="relative">
+                      <div className="absolute -left-8 top-1.5 w-6 h-6 rounded-full bg-white border-2 border-orange-500 flex items-center justify-center z-10">
+                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                      </div>
+                      <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-stone-800">{event.type}</h4>
+                          <span className="text-xs font-medium text-stone-400">{new Date(event.date).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-sm text-stone-600 mb-2">{event.description}</p>
+                        {event.oldDesignation && event.newDesignation && (
+                          <div className="flex items-center gap-2 text-xs font-bold">
+                            <span className="text-stone-400">{event.oldDesignation}</span>
+                            <span className="text-orange-500">→</span>
+                            <span className="text-emerald-600">{event.newDesignation}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

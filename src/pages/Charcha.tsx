@@ -397,6 +397,7 @@ export const Charcha = () => {
               users={users}
               isSarpanch={isSarpanch}
               showUpvotersToAdmin={settings.showUpvotersToAdmin}
+              showAnonymousNamesToAdmin={settings.showAnonymousNamesToAdmin}
             />
           )}
         </>
@@ -405,7 +406,7 @@ export const Charcha = () => {
   );
 };
 
-const GuptGupshupTab = ({ posts, addPost, updatePost, currentUser, users, isSarpanch, showUpvotersToAdmin }: any) => {
+const GuptGupshupTab = ({ posts, addPost, updatePost, currentUser, users, isSarpanch, showUpvotersToAdmin, showAnonymousNamesToAdmin }: any) => {
   const [newPostContent, setNewPostContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [showDismissed, setShowDismissed] = useState(false);
@@ -488,7 +489,7 @@ const GuptGupshupTab = ({ posts, addPost, updatePost, currentUser, users, isSarp
                   <div>
                     <p className="font-bold text-stone-800 text-sm">
                       {post.isAnonymous ? 'Anonymous' : author?.name}
-                      {post.isAnonymous && isSarpanch && <span className="text-xs text-orange-500 ml-2 font-normal">(Real: {author?.name})</span>}
+                      {post.isAnonymous && isSarpanch && showAnonymousNamesToAdmin && <span className="text-xs text-orange-500 ml-2 font-normal">(Real: {author?.name})</span>}
                     </p>
                     <p className="text-[10px] text-stone-400">{new Date(post.createdAt).toLocaleString()}</p>
                   </div>

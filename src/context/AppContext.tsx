@@ -24,6 +24,14 @@ export interface User {
   isIntern?: boolean;
   birthday?: string;
   anniversary?: string;
+  journey?: {
+    id: string;
+    date: string;
+    type: 'Joining' | 'Promoted' | 'Internship' | 'Conversion' | 'Other';
+    description: string;
+    oldDesignation?: string;
+    newDesignation?: string;
+  }[];
 }
 
 export interface AdminNote {
@@ -66,6 +74,7 @@ export interface AppSettings {
   workDaysPerWeek?: number;
   guptGupshupEnabled?: boolean;
   showUpvotersToAdmin?: boolean;
+  showAnonymousNamesToAdmin?: boolean;
 }
 
 export interface DocumentItem {

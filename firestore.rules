@@ -17,8 +17,10 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin') ||
-        (request.auth.token.email == "bhatter.kaustubh@gmail.com") // Simplified for now to ensure access
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Sarpanch')) ||
+        (request.auth.token.email == "bhatter.kaustubh@gmail.com")
       );
     }
 
@@ -61,7 +63,7 @@ service cloud.firestore {
       let data = request.resource.data;
       return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
-             data.role in ['Admin', 'Team Leader', 'IC'] &&
+             data.role in ['Admin', 'Team Leader', 'IC', 'Sarpanch', 'Karyakarta'] &&
              data.teamIds is list && data.teamIds.size() <= 20 &&
              data.avatar is string && data.avatar.size() <= 1000 &&
              data.status in ['Active', 'Inactive'] &&
