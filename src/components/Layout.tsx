@@ -2,20 +2,28 @@ import React, { useRef, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Users, UsersRound, LayoutDashboard, Bell, Search, LogOut, Calendar, Settings, FileText, TreeDeciduous, MessageSquare, Camera, Loader2, Users as UsersIcon, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useAppContext, User, Team } from '../context/AppContext';
+import { useAppContext, User, Team, Notification } from '../context/AppContext';
 import { EmployeeProfileModal } from './EmployeeProfileModal';
 import { TeamDetailsModal } from './TeamModals';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export const Layout = () => {
   const { user, logout } = useAuth();
-  const { uploadFile, updateUser, users, teams } = useAppContext();
+  const { uploadFile, updateUser, users, teams, notifications, markNotificationAsRead, deleteNotification } = useAppContext();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+
+  const myNotifications = notifications
+    .filter(n => n.userId === user?.id)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  
+  const unreadCount = myNotifications.filter(n => !n.read).length;
 
   const filteredUsers = searchQuery.trim() 
     ? users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.designation?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -172,10 +180,86 @@ export const Layout = () => {
           </div>
 
           <div className="flex items-center gap-6">
-            <button className="relative text-stone-400 hover:text-orange-500 transition-colors">
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`relative transition-colors ${showNotifications ? 'text-orange-600' : 'text-stone-400 hover:text-orange-500'}`}
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full border-2 border-white flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setShowNotifications(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-stone-100 overflow-hidden z-40"
+                    >
+                      <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
+                        <h3 className="font-bold text-stone-800">Notifications</h3>
+                        <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{unreadCount} Unread</span>
+                      </div>
+                      <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {myNotifications.length > 0 ? (
+                          myNotifications.map(n => (
+                            <div 
+                              key={n.id} 
+                              className={`p-4 border-b border-stone-50 last:border-0 transition-colors relative group ${!n.read ? 'bg-orange-50/30' : 'hover:bg-stone-50'}`}
+                              onClick={() => {
+                                if (!n.read) markNotificationAsRead(n.id);
+                                if (n.link) {
+                                  navigate(n.link);
+                                  setShowNotifications(false);
+                                }
+                              }}
+                            >
+                              <div className="flex gap-3">
+                                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                                  n.type === 'success' ? 'bg-emerald-500' : 
+                                  n.type === 'warning' ? 'bg-amber-500' : 
+                                  n.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'
+                                } ${n.read ? 'opacity-0' : 'opacity-100'}`} />
+                                <div className="flex-1">
+                                  <p className="text-sm font-bold text-stone-800 leading-tight mb-1">{n.title}</p>
+                                  <p className="text-xs text-stone-500 leading-relaxed">{n.message}</p>
+                                  <p className="text-[10px] text-stone-400 mt-2 font-medium">
+                                    {new Date(n.createdAt).toLocaleDateString()} • {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteNotification(n.id);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-500 transition-opacity"
+                                >
+                                  <LogOut size={14} className="rotate-90" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-8 text-center">
+                            <div className="w-12 h-12 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-3 text-stone-300">
+                              <Bell size={24} />
+                            </div>
+                            <p className="text-sm text-stone-400">No notifications yet</p>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
             <div className="flex items-center gap-4 pl-6 border-l border-stone-200">
               <div className="flex items-center gap-3">
                 <div className="text-right hidden md:block">

@@ -407,7 +407,7 @@ const Lakshya: React.FC = () => {
                                   <table className="w-full text-sm">
                                     <thead>
                                       <tr className="text-stone-400 text-left border-b border-stone-100">
-                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Initiative</th>
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest w-[45%]">Initiative</th>
                                         <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Due on</th>
                                         <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Status</th>
                                         <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Owner</th>

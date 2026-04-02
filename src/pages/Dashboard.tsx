@@ -123,7 +123,7 @@ export const Drishyam = () => {
           trend="+2 new teams"
           color="bg-rose-50"
         />
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col group hover:shadow-md transition-shadow h-full min-h-[160px]">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col group hover:shadow-md transition-shadow h-full min-h-[220px]">
           <div className="flex items-center justify-between mb-3">
             <p className="text-stone-500 font-medium text-sm">Panchayat Notes</p>
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
@@ -271,16 +271,16 @@ export const Drishyam = () => {
           </div>
         </div>
 
-        {/* Upcoming Events */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-stone-100">
+        {/* Activities */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-stone-100 h-full min-h-[220px] flex flex-col">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-fuchsia-50 text-fuchsia-500 rounded-xl">
               <Gift size={20} />
             </div>
-            <h3 className="text-lg font-bold text-stone-800">Upcoming Events</h3>
+            <h3 className="text-lg font-bold text-stone-800">Activities</h3>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-1 custom-scrollbar">
             {upcomingEvents.length > 0 ? (
               upcomingEvents.map((event, idx) => (
                 <div key={idx} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors">

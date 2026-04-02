@@ -506,10 +506,10 @@ const GuptGupshupTab = ({ posts, addPost, updatePost, currentUser, users, isSarp
                     <span className="text-lg leading-none">👍</span>
                     {post.upvotes?.length || 0}
                   </button>
-                  {isSarpanch && showUpvotersToAdmin && post.upvotes?.length > 0 && (
-                    <span className="text-xs text-stone-400" title={upvoters}>
-                      {post.upvotes.length} upvoter(s)
-                    </span>
+                  {isSarpanch && showAnonymousNamesToAdmin && post.upvotes?.length > 0 && (
+                    <div className="mt-2 text-[10px] text-stone-400 font-medium">
+                      Upvoted by: {upvoters}
+                    </div>
                   )}
                 </div>
               </div>

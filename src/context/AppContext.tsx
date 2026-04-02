@@ -161,6 +161,17 @@ export interface Initiative {
   createdBy: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+  link?: string;
+}
+
 interface AppContextType {
   users: User[];
   teams: Team[];
@@ -205,6 +216,9 @@ interface AppContextType {
   addInitiative: (initiative: Omit<Initiative, 'id'>) => Promise<void>;
   updateInitiative: (id: string, updates: Partial<Initiative>) => Promise<void>;
   deleteInitiative: (id: string) => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
   uploadFile: (file: File, path: string) => Promise<string>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
@@ -228,6 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
   const [krCheckIns, setKrCheckIns] = useState<KRCheckIn[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -301,6 +316,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setInitiatives(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Initiative)));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'initiatives'));
 
+    const unsubNotifications = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+      setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification)));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'notifications'));
+
     setIsLoading(false);
 
     return () => {
@@ -318,6 +337,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubKeyResults();
       unsubKRCheckIns();
       unsubInitiatives();
+      unsubNotifications();
     };
   }, [user]);
 
@@ -344,9 +364,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const addLeave = async (l: Omit<LeaveRequest, 'id'>) => {
     await api.addLeave(l);
+    // Notify managers/admins
+    const managers = users.filter(u => u.role === 'Admin' || u.role === 'Sarpanch' || u.id === user?.managerId);
+    for (const manager of managers) {
+      if (manager.id !== user?.id) {
+        await addNotification({
+          userId: manager.id,
+          title: 'Leave Requested',
+          message: `${user?.name} has requested leave from ${l.startDate} to ${l.endDate}`,
+          type: 'info',
+          link: '/attendance'
+        });
+      }
+    }
   };
   const updateLeave = async (id: string, updates: Partial<LeaveRequest>) => {
+    const oldLeave = leaves.find(l => l.id === id);
     await api.updateLeave(id, updates);
+    if (updates.status && updates.status !== oldLeave?.status && oldLeave?.userId !== user?.id) {
+      await addNotification({
+        userId: oldLeave!.userId,
+        title: `Leave ${updates.status}`,
+        message: `Your leave request from ${oldLeave?.startDate} has been ${updates.status.toLowerCase()}`,
+        type: updates.status === 'Approved' ? 'success' : 'error',
+        link: '/attendance'
+      });
+    }
   };
   const addHoliday = async (h: Omit<Holiday, 'id'>) => {
     await api.addHoliday(h);
@@ -404,15 +447,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const addKRCheckIn = async (ci: Omit<KRCheckIn, 'id'>) => {
     await api.addKRCheckIn(ci);
+    const kr = keyResults.find(k => k.id === ci.krId);
+    if (kr && kr.ownerId !== user?.id) {
+      await addNotification({
+        userId: kr.ownerId,
+        title: 'KR Updated',
+        message: `Your KR "${kr.title}" has been updated to ${ci.value}${kr.unit}`,
+        type: 'info',
+        link: '/lakshya'
+      });
+    }
   };
   const addInitiative = async (i: Omit<Initiative, 'id'>) => {
     await api.addInitiative(i);
+    if (i.ownerId !== user?.id) {
+      await addNotification({
+        userId: i.ownerId,
+        title: 'New Initiative Assigned',
+        message: `You have been assigned a new initiative: ${i.title}`,
+        type: 'info',
+        link: '/lakshya'
+      });
+    }
   };
   const updateInitiative = async (id: string, updates: Partial<Initiative>) => {
+    const oldInitiative = initiatives.find(i => i.id === id);
     await api.updateInitiative(id, updates);
+    if (updates.ownerId && updates.ownerId !== oldInitiative?.ownerId && updates.ownerId !== user?.id) {
+      await addNotification({
+        userId: updates.ownerId,
+        title: 'Initiative Assigned',
+        message: `You have been assigned the initiative: ${updates.title || oldInitiative?.title}`,
+        type: 'info',
+        link: '/lakshya'
+      });
+    }
   };
   const deleteInitiative = async (id: string) => {
     await api.deleteInitiative(id);
+  };
+  const addNotification = async (n: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
+    await api.addNotification(n);
+  };
+  const markNotificationAsRead = async (id: string) => {
+    await api.updateNotification(id, { read: true });
+  };
+  const deleteNotification = async (id: string) => {
+    await api.deleteNotification(id);
   };
   const uploadFile = async (file: File, path: string) => {
     return await api.uploadFile(file, path);
@@ -421,7 +502,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{ 
       users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes, guptGupshupPosts,
-      goals, keyResults, krCheckIns, initiatives,
+      goals, keyResults, krCheckIns, initiatives, notifications,
       addUser, updateUser, deleteUser, addTeam, updateTeam, 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
@@ -429,6 +510,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addAdminNote, deleteAdminNote, addGuptGupshupPost, updateGuptGupshupPost,
       addGoal, updateGoal, deleteGoal, addKeyResult, updateKeyResult, deleteKeyResult,
       addKRCheckIn, addInitiative, updateInitiative, deleteInitiative,
+      addNotification, markNotificationAsRead, deleteNotification,
       uploadFile,
       isLoading, refreshData: loadData 
     }}>

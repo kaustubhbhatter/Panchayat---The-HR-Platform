@@ -1,4 +1,4 @@
-import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote, GuptGupshupPost, Goal, KeyResult, KRCheckIn, Initiative } from '../context/AppContext';
+import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote, GuptGupshupPost, Goal, KeyResult, KRCheckIn, Initiative, Notification } from '../context/AppContext';
 import { db, auth, firebaseConfig, storage } from '../firebase';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -436,6 +436,36 @@ export const api = {
       await deleteDoc(doc(db, 'initiatives', id));
     } catch (error) {
       return handleFirestoreError(error, OperationType.DELETE, `initiatives/${id}`);
+    }
+  },
+  
+  addNotification: async (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<Notification> => {
+    try {
+      const data = {
+        ...notification,
+        read: false,
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'notifications'), data);
+      return { id: docRef.id, ...data } as Notification;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, 'notifications');
+    }
+  },
+
+  updateNotification: async (id: string, updates: Partial<Notification>): Promise<void> => {
+    try {
+      await updateDoc(doc(db, 'notifications', id), updates);
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`);
+    }
+  },
+
+  deleteNotification: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'notifications', id));
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.DELETE, `notifications/${id}`);
     }
   },
 

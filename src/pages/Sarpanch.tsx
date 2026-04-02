@@ -9,7 +9,6 @@ export const Sarpanch = () => {
   const [quota, setQuota] = useState(settings.defaultLeaveQuota.toString());
   const [wfhQuota, setWfhQuota] = useState((settings.defaultWfhQuota || 10).toString());
   const [guptEnabled, setGuptEnabled] = useState(settings.guptGupshupEnabled || false);
-  const [showUpvoters, setShowUpvoters] = useState(settings.showUpvotersToAdmin || false);
   const [showAnonNames, setShowAnonNames] = useState(settings.showAnonymousNamesToAdmin || false);
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -22,7 +21,6 @@ export const Sarpanch = () => {
     setQuota(settings.defaultLeaveQuota.toString());
     setWfhQuota((settings.defaultWfhQuota || 10).toString());
     setGuptEnabled(settings.guptGupshupEnabled || false);
-    setShowUpvoters(settings.showUpvotersToAdmin || false);
     setShowAnonNames(settings.showAnonymousNamesToAdmin || false);
   }, [settings]);
   
@@ -49,7 +47,6 @@ export const Sarpanch = () => {
         defaultLeaveQuota: parseInt(quota) || 0,
         defaultWfhQuota: parseInt(wfhQuota) || 0,
         guptGupshupEnabled: guptEnabled,
-        showUpvotersToAdmin: showUpvoters,
         showAnonymousNamesToAdmin: showAnonNames
       });
       showMessage('Settings saved successfully');
@@ -366,27 +363,14 @@ export const Sarpanch = () => {
               
               <label className="flex items-center gap-3">
                 <input 
-                  type="checkbox"
-                  checked={showUpvoters}
-                  onChange={e => setShowUpvoters(e.target.checked)}
-                  className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                  disabled={!guptEnabled}
-                />
-                <span className={`font-medium ${guptEnabled ? 'text-slate-700' : 'text-slate-400'}`}>
-                  Show names of upvoters to Sarpanch
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3">
-                <input 
-                  type="checkbox"
+                  type="checkbox" 
                   checked={showAnonNames}
                   onChange={e => setShowAnonNames(e.target.checked)}
                   className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                   disabled={!guptEnabled}
                 />
                 <span className={`font-medium ${guptEnabled ? 'text-slate-700' : 'text-slate-400'}`}>
-                  Show names of anonymous posters to Sarpanch
+                  Show names of anonymous posters & upvoters to Sarpanch
                 </span>
               </label>
             </div>
