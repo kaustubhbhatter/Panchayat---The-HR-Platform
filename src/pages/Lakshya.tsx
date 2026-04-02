@@ -1,0 +1,733 @@
+import React, { useState, useMemo } from 'react';
+import { useAppContext, Goal, KeyResult, Initiative, KRCheckIn, User } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { 
+  Target, 
+  Plus, 
+  ChevronDown, 
+  ChevronRight, 
+  CheckCircle2, 
+  AlertCircle, 
+  Clock, 
+  User as UserIcon,
+  Calendar,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  PieChart as PieChartIcon,
+  BarChart3,
+  MessageSquare
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+
+const Lakshya: React.FC = () => {
+  const { 
+    goals, 
+    keyResults, 
+    initiatives, 
+    users, 
+    addGoal, 
+    updateGoal, 
+    deleteGoal,
+    addKeyResult,
+    updateKeyResult,
+    deleteKeyResult,
+    addKRCheckIn,
+    addInitiative,
+    updateInitiative,
+    deleteInitiative
+  } = useAppContext();
+  const { user: currentUser } = useAuth();
+  const isAdmin = users.find(u => u.email === currentUser?.email)?.role === 'Admin' || users.find(u => u.email === currentUser?.email)?.role === 'Sarpanch';
+
+  const [selectedFilter, setSelectedFilter] = useState<string>('Current');
+
+  const currentQuarterStr = useMemo(() => {
+    const now = new Date();
+    const quarter = Math.floor(now.getMonth() / 3) + 1;
+    return `${now.getFullYear()}-Q${quarter}`;
+  }, []);
+
+  const getQuartersForFilter = (filter: string) => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentQ = Math.floor(now.getMonth() / 3) + 1;
+    
+    const getQStr = (year: number, q: number) => {
+      let y = year;
+      let quarter = q;
+      while (quarter > 4) { y++; quarter -= 4; }
+      while (quarter < 1) { y--; quarter += 4; }
+      return `${y}-Q${quarter}`;
+    };
+
+    switch (filter) {
+      case 'Current':
+        return [getQStr(currentYear, currentQ)];
+      case 'Upcoming':
+        return [getQStr(currentYear, currentQ + 1)];
+      case 'Past Year':
+        return [
+          getQStr(currentYear, currentQ - 1),
+          getQStr(currentYear, currentQ - 2),
+          getQStr(currentYear, currentQ - 3),
+          getQStr(currentYear, currentQ - 4),
+        ];
+      case 'Future':
+        return [
+          getQStr(currentYear, currentQ + 1),
+          getQStr(currentYear, currentQ + 2),
+          getQStr(currentYear, currentQ + 3),
+          getQStr(currentYear, currentQ + 4),
+        ];
+      case 'History':
+        return []; // Special case
+      default:
+        return [getQStr(currentYear, currentQ)];
+    }
+  };
+
+  const filteredGoals = useMemo(() => {
+    if (selectedFilter === 'History') {
+      return goals.filter(g => g.quarter < currentQuarterStr).sort((a, b) => b.quarter.localeCompare(a.quarter));
+    }
+    const targetQuarters = getQuartersForFilter(selectedFilter);
+    return goals.filter(g => targetQuarters.includes(g.quarter)).sort((a, b) => b.quarter.localeCompare(a.quarter));
+  }, [goals, selectedFilter, currentQuarterStr]);
+
+  const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState(false);
+  const [isAddKRModalOpen, setIsAddKRModalOpen] = useState(false);
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [isAddInitiativeModalOpen, setIsAddInitiativeModalOpen] = useState(false);
+  
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [selectedKRId, setSelectedKRId] = useState<string | null>(null);
+
+  const [expandedGoals, setExpandedGoals] = useState<string[]>([]);
+  const [expandedKRs, setExpandedKRs] = useState<string[]>([]);
+
+  const toggleGoal = (id: string) => {
+    setExpandedGoals(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleKR = (id: string) => {
+    setExpandedKRs(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'On Track': return 'text-green-600 bg-green-50 border-green-200';
+      case 'Behind': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'At Risk': return 'text-red-600 bg-red-50 border-red-200';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getInitiativeStatusIcon = (status: string) => {
+    let progress = 0;
+    let color = '#94a3b8'; // Default grey
+
+    switch (status) {
+      case 'Completed':
+        progress = 100;
+        color = '#10b981'; // Green
+        break;
+      case 'In Progress':
+        progress = 50;
+        color = '#f97316'; // Orange
+        break;
+      case 'Dropped':
+        progress = 0;
+        color = '#ef4444'; // Red
+        break;
+      case 'Not Picked':
+      default:
+        progress = 0;
+        color = '#94a3b8'; // Grey
+        break;
+    }
+
+    const data = [
+      { name: 'Progress', value: progress },
+      { name: 'Remaining', value: 100 - progress }
+    ];
+
+    if (status === 'Completed') {
+      return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+    }
+
+    return (
+      <div className="w-5 h-5">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              innerRadius={0}
+              outerRadius={10}
+              paddingAngle={0}
+              dataKey="value"
+              stroke="none"
+              startAngle={90}
+              endAngle={-270}
+            >
+              <Cell fill={color} />
+              <Cell fill="#e2e8f0" />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  const calculateGoalProgress = (goalId: string) => {
+    const krs = keyResults.filter(kr => kr.goalId === goalId);
+    if (krs.length === 0) return 0;
+    const totalProgress = krs.reduce((acc, kr) => acc + (kr.currentValue / kr.targetValue), 0);
+    return Math.round((totalProgress / krs.length) * 100);
+  };
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-black text-stone-800 flex items-center gap-2">
+            <Target className="w-8 h-8 text-orange-500" />
+            Lakshya
+          </h1>
+          <p className="text-stone-500 font-medium">Quarterly Goals & Key Results</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <select 
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+            className="bg-white border border-stone-200 rounded-xl px-4 py-2 text-sm font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="Current">Current</option>
+            <option value="Past Year">Past Year</option>
+            <option value="Upcoming">Upcoming</option>
+            <option value="Future">Future</option>
+            <option value="History">History</option>
+          </select>
+          
+          {isAdmin && (
+            <button 
+              onClick={() => setIsAddGoalModalOpen(true)}
+              className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              Add Goal
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {filteredGoals.length === 0 ? (
+          <div className="bg-white border border-dashed border-stone-200 rounded-3xl p-12 text-center">
+            <Target className="w-12 h-12 text-stone-200 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-stone-800">No goals found</h3>
+            <p className="text-stone-500 mb-6 font-medium">Start by creating a new goal for the current quarter</p>
+            {isAdmin && (
+              <button 
+                onClick={() => setIsAddGoalModalOpen(true)}
+                className="inline-flex items-center gap-2 text-orange-500 font-bold hover:text-orange-600"
+              >
+                <Plus className="w-4 h-4" />
+                Create Goal
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredGoals.map(goal => {
+            const goalProgress = calculateGoalProgress(goal.id);
+            const isExpanded = expandedGoals.includes(goal.id);
+            const goalKRs = keyResults.filter(kr => kr.goalId === goal.id);
+
+            return (
+              <div key={goal.id} className="bg-white border border-stone-100 rounded-3xl overflow-hidden shadow-sm">
+                <div 
+                  className="p-5 flex items-center gap-4 cursor-pointer hover:bg-stone-50/50 transition-colors"
+                  onClick={() => toggleGoal(goal.id)}
+                >
+                  <div className="p-3 bg-orange-50 rounded-2xl">
+                    <Target className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-black text-stone-800">{goal.title} <span className="text-xs font-bold text-stone-400 ml-2">({goal.quarter})</span></h3>
+                    <p className="text-sm text-stone-500 font-medium">{goal.description}</p>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="w-48 h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-orange-500 transition-all duration-500"
+                          style={{ width: `${goalProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-black text-orange-500">{goalProgress}% Complete</span>
+                    </div>
+                    {isExpanded ? <ChevronDown className="w-5 h-5 text-stone-400" /> : <ChevronRight className="w-5 h-5 text-stone-400" />}
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div 
+                      initial={{ height: 0 }}
+                      animate={{ height: 'auto' }}
+                      exit={{ height: 0 }}
+                      className="overflow-hidden border-t border-stone-100"
+                    >
+                      <div className="p-6 space-y-4 bg-stone-50/30">
+                        {goalKRs.map(kr => {
+                          const krProgress = Math.round((kr.currentValue / kr.targetValue) * 100);
+                          const isKRExpanded = expandedKRs.includes(kr.id);
+                          const krInitiatives = initiatives.filter(i => i.krId === kr.id);
+                          const owner = users.find(u => u.id === kr.ownerId || u.email === kr.ownerId);
+
+                          return (
+                            <div key={kr.id} className="bg-white border border-stone-100 rounded-2xl shadow-sm">
+                              <div className="p-4 flex items-center gap-4">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <button 
+                                    onClick={() => toggleKR(kr.id)}
+                                    className="p-1.5 hover:bg-stone-100 rounded-xl transition-colors"
+                                  >
+                                    {isKRExpanded ? <ChevronDown className="w-4 h-4 text-stone-400" /> : <ChevronRight className="w-4 h-4 text-stone-400" />}
+                                  </button>
+                                  <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 font-black text-xs">
+                                    {owner?.name.split(' ').map(n => n[0]).join('') || 'KR'}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-stone-800">{kr.title}</h4>
+                                    <div className="flex items-center gap-3 mt-1">
+                                      <span className={`text-[10px] px-2.5 py-1 rounded-full border font-bold ${getStatusColor(kr.status)}`}>
+                                        {kr.status}
+                                      </span>
+                                      <span className="text-[11px] text-stone-400 font-bold flex items-center gap-1 uppercase tracking-wider">
+                                        <UserIcon className="w-3 h-3" />
+                                        {owner?.name || 'Unassigned'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-6">
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedKRId(kr.id);
+                                      setIsCheckInModalOpen(true);
+                                    }}
+                                    className="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+                                  >
+                                    Check-in
+                                  </button>
+                                  
+                                  <div className="text-right">
+                                    <div className="text-xs font-black text-stone-800">
+                                      {kr.unit}{kr.currentValue.toLocaleString()} / {kr.unit}{kr.targetValue.toLocaleString()}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <div className="w-24 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-orange-500"
+                                          style={{ width: `${krProgress}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs font-black text-orange-500">{krProgress}%</span>
+                                    </div>
+                                  </div>
+
+                                  {isAdmin && (
+                                    <div className="flex items-center gap-1">
+                                      <button className="p-2 hover:bg-stone-50 rounded-xl text-stone-400 transition-colors">
+                                        <Edit2 className="w-4 h-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => deleteKeyResult(kr.id)}
+                                        className="p-2 hover:bg-rose-50 rounded-xl text-stone-400 hover:text-rose-500 transition-colors"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {isKRExpanded && (
+                                <div className="border-t border-stone-100 p-5 bg-stone-50/20">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="text-stone-400 text-left border-b border-stone-100">
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Initiative</th>
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Due on</th>
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Status</th>
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Priority</th>
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest">Owner</th>
+                                        <th className="pb-3 font-bold uppercase text-[10px] tracking-widest"></th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-stone-50">
+                                      {krInitiatives.map(initiative => {
+                                        const iOwner = users.find(u => u.id === initiative.ownerId || u.email === initiative.ownerId);
+                                        return (
+                                          <tr key={initiative.id} className="group">
+                                            <td className="py-4">
+                                              <div className="flex items-center gap-3">
+                                                <input type="checkbox" className="w-4 h-4 rounded-lg border-stone-200 text-orange-500 focus:ring-orange-500 cursor-pointer" checked={initiative.status === 'Completed'} readOnly />
+                                                <span className="text-stone-800 font-bold">{initiative.title}</span>
+                                              </div>
+                                            </td>
+                                            <td className="py-4 text-stone-500 font-medium">{initiative.dueDate || '-'}</td>
+                                            <td className="py-4">
+                                              <div className="flex items-center gap-2">
+                                                {getInitiativeStatusIcon(initiative.status)}
+                                                <span className="text-stone-600 font-medium">{initiative.status}</span>
+                                              </div>
+                                            </td>
+                                            <td className="py-4">
+                                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                                                initiative.priority === 'High' ? 'bg-rose-50 text-rose-600' :
+                                                initiative.priority === 'Medium' ? 'bg-amber-50 text-amber-600' :
+                                                'bg-stone-50 text-stone-600'
+                                              }`}>
+                                                {initiative.priority}
+                                              </span>
+                                            </td>
+                                            <td className="py-4">
+                                              <div className="w-7 h-7 bg-orange-50 rounded-xl flex items-center justify-center text-orange-700 font-black text-[10px]">
+                                                {iOwner?.name.split(' ').map(n => n[0]).join('') || '??'}
+                                              </div>
+                                            </td>
+                                            <td className="py-4 text-right">
+                                              <button 
+                                                onClick={() => deleteInitiative(initiative.id)}
+                                                className="p-2 opacity-0 group-hover:opacity-100 hover:bg-rose-50 rounded-xl text-rose-500 transition-all"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                  <div className="mt-6 flex items-center gap-6">
+                                    <button 
+                                      onClick={() => {
+                                        setSelectedKRId(kr.id);
+                                        setIsAddInitiativeModalOpen(true);
+                                      }}
+                                      className="text-orange-500 text-xs font-black flex items-center gap-1.5 hover:text-orange-600 transition-colors uppercase tracking-wider"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                      Add Initiative
+                                    </button>
+                                    <button className="text-stone-400 text-xs font-bold flex items-center gap-1.5 hover:text-stone-600 transition-colors uppercase tracking-wider">
+                                      <BarChart3 className="w-4 h-4" />
+                                      AI Initiatives
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {isAdmin && (
+                          <button 
+                            onClick={() => {
+                              setSelectedGoalId(goal.id);
+                              setIsAddKRModalOpen(true);
+                            }}
+                            className="w-full py-4 border-2 border-dashed border-stone-200 rounded-2xl text-stone-400 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50/30 transition-all flex items-center justify-center gap-2 text-sm font-black uppercase tracking-widest"
+                          >
+                            <Plus className="w-5 h-5" />
+                            Add Key Result
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Add Goal Modal */}
+      {isAddGoalModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-stone-100"
+          >
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <h2 className="text-xl font-black text-stone-800">Add New Goal</h2>
+              <button onClick={() => setIsAddGoalModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+                <ChevronDown className="w-6 h-6 rotate-90" />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              await addGoal({
+                title: formData.get('title') as string,
+                description: formData.get('description') as string,
+                quarter: currentQuarterStr,
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser?.email || 'system'
+              });
+              setIsAddGoalModalOpen(false);
+            }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">Goal Title</label>
+                <input name="title" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="e.g., Achieving our highest revenue quarter" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">Description</label>
+                <textarea name="description" rows={3} className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="Briefly describe the objective" />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsAddGoalModalOpen(false)} className="flex-1 px-4 py-2 border border-stone-200 rounded-xl text-stone-600 font-bold hover:bg-stone-50">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-500/20">Create Goal</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Add KR Modal */}
+      {isAddKRModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-stone-100"
+          >
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <h2 className="text-xl font-black text-stone-800">Add Key Result</h2>
+              <button onClick={() => setIsAddKRModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+                <ChevronDown className="w-6 h-6 rotate-90" />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              if (!selectedGoalId) return;
+              await addKeyResult({
+                goalId: selectedGoalId,
+                title: formData.get('title') as string,
+                ownerId: formData.get('ownerId') as string,
+                targetValue: Number(formData.get('targetValue')),
+                currentValue: 0,
+                status: 'On Track',
+                unit: formData.get('unit') as string,
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser?.email || 'system'
+              });
+              setIsAddKRModalOpen(false);
+            }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">KR Title</label>
+                <input name="title" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="e.g., Reach 650 B2C Conversions" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-1">Target Value</label>
+                  <input name="targetValue" type="number" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-1">Unit</label>
+                  <input name="unit" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="$ or units" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">Owner</label>
+                <select name="ownerId" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none">
+                  {users.map(u => (
+                    <option key={u.id} value={u.email}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsAddKRModalOpen(false)} className="flex-1 px-4 py-2 border border-stone-200 rounded-xl text-stone-600 font-bold hover:bg-stone-50">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-500/20">Add KR</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* KR Check-in Modal */}
+      {isCheckInModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-stone-100"
+          >
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <div className="flex gap-6">
+                <button className="text-orange-500 font-black border-b-2 border-orange-500 pb-1 uppercase text-xs tracking-widest">Check-In</button>
+                <button className="text-stone-400 font-bold pb-1 uppercase text-xs tracking-widest">Comment</button>
+              </div>
+              <button onClick={() => setIsCheckInModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+                <ChevronDown className="w-6 h-6 rotate-90" />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              if (!selectedKRId) return;
+              await addKRCheckIn({
+                krId: selectedKRId,
+                value: Number(formData.get('value')),
+                status: formData.get('status') as any,
+                comment: formData.get('comment') as string,
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser?.email || 'system'
+              });
+              setIsCheckInModalOpen(false);
+            }} className="p-8 space-y-6 bg-stone-50/30">
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-2">Progress ({keyResults.find(k => k.id === selectedKRId)?.unit || '$'}):</label>
+                  <input name="value" type="number" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-white font-bold text-stone-800" />
+                  <p className="text-[10px] text-stone-400 mt-1 font-bold">0 → {keyResults.find(k => k.id === selectedKRId)?.targetValue.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-2">Current Status:</label>
+                  <div className="flex gap-2">
+                    {['On Track', 'Behind', 'At Risk'].map(s => (
+                      <label key={s} className="flex-1">
+                        <input type="radio" name="status" value={s} className="sr-only peer" defaultChecked={s === 'On Track'} />
+                        <div className={`text-center py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all
+                          ${s === 'On Track' ? 'peer-checked:bg-green-500 peer-checked:text-white peer-checked:border-green-500 text-green-600 border-green-100 bg-green-50/50' : 
+                            s === 'Behind' ? 'peer-checked:bg-amber-500 peer-checked:text-white peer-checked:border-amber-500 text-amber-600 border-amber-100 bg-amber-50/50' : 
+                            'peer-checked:bg-rose-500 peer-checked:text-white peer-checked:border-rose-500 text-rose-600 border-rose-100 bg-rose-50/50'}`}
+                        >
+                          {s}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-2 flex items-center gap-2">
+                  Check-in note
+                  <span className="text-[10px] text-stone-400 flex items-center gap-1 font-bold uppercase tracking-wider">
+                    <BarChart3 className="w-3 h-3" /> See Examples
+                  </span>
+                </label>
+                <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 p-2 border-b border-stone-100 bg-stone-50/50">
+                    <div className="flex items-center gap-1 border-r border-stone-200 pr-2">
+                      <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg text-[10px] font-black uppercase tracking-wider text-stone-500">Format</button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg font-bold text-stone-600">B</button>
+                      <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg italic text-stone-600">I</button>
+                      <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg underline text-stone-600">U</button>
+                    </div>
+                  </div>
+                  <textarea name="comment" rows={6} className="w-full p-4 focus:outline-none text-sm font-medium text-stone-700" placeholder="+ Summary of check-in" />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4">
+                <div className="flex gap-4">
+                  <button type="submit" className="px-8 py-3 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20">Check-In</button>
+                  <button type="button" onClick={() => setIsCheckInModalOpen(false)} className="px-6 py-3 text-stone-400 font-bold text-xs uppercase tracking-widest hover:text-stone-600">Cancel</button>
+                </div>
+                <div className="text-[10px] text-stone-400 font-black uppercase tracking-widest">2 Subscribers</div>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Add Initiative Modal */}
+      {isAddInitiativeModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-stone-100"
+          >
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <h2 className="text-xl font-black text-stone-800">Add Initiative</h2>
+              <button onClick={() => setIsAddInitiativeModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+                <ChevronDown className="w-6 h-6 rotate-90" />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              if (!selectedKRId) return;
+              await addInitiative({
+                krId: selectedKRId,
+                title: formData.get('title') as string,
+                ownerId: formData.get('ownerId') as string,
+                status: formData.get('status') as any,
+                priority: formData.get('priority') as any,
+                dueDate: formData.get('dueDate') as string,
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser?.email || 'system'
+              });
+              setIsAddInitiativeModalOpen(false);
+            }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">Initiative Title</label>
+                <input name="title" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="e.g., Resource Library" />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-1">Status</label>
+                  <select name="status" className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs font-bold text-stone-700">
+                    <option value="Not Picked">Not Picked</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Dropped">Dropped</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-1">Priority</label>
+                  <select name="priority" className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs font-bold text-stone-700">
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-1">Due Date</label>
+                  <input name="dueDate" type="date" className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs font-bold text-stone-700" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-stone-700 mb-1">Owner</label>
+                <select name="ownerId" required className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs font-bold text-stone-700">
+                  {users.map(u => (
+                    <option key={u.id} value={u.email}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsAddInitiativeModalOpen(false)} className="flex-1 px-4 py-2 border border-stone-200 rounded-xl text-stone-600 font-bold hover:bg-stone-50">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-500/20">Add Initiative</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Lakshya;

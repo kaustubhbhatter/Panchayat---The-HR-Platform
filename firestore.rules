@@ -255,5 +255,25 @@ service cloud.firestore {
       allow update: if isAuthenticated() && isValidGuptGupshupPost(); // Allow any authenticated user to upvote/dismiss
       allow delete: if isAdmin();
     }
+
+    match /goals/{goalId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /keyResults/{krId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /krCheckIns/{checkInId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+
+    match /initiatives/{initiativeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
+    }
   }
 }

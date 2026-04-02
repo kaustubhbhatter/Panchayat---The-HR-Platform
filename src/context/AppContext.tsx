@@ -117,6 +117,50 @@ export interface GuptGupshupPost {
   dismissedBy: string[]; // array of userIds who dismissed it
 }
 
+export interface Goal {
+  id: string;
+  title: string;
+  description: string;
+  quarter: string; // e.g., "2026-Q1"
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface KeyResult {
+  id: string;
+  goalId: string;
+  title: string;
+  ownerId: string;
+  targetValue: number;
+  currentValue: number;
+  status: 'On Track' | 'Behind' | 'At Risk';
+  unit: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface KRCheckIn {
+  id: string;
+  krId: string;
+  value: number;
+  status: 'On Track' | 'Behind' | 'At Risk';
+  comment: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface Initiative {
+  id: string;
+  krId: string;
+  title: string;
+  ownerId: string;
+  status: 'Not Picked' | 'In Progress' | 'Completed' | 'Dropped';
+  priority: 'Low' | 'Medium' | 'High';
+  dueDate: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 interface AppContextType {
   users: User[];
   teams: Team[];
@@ -128,6 +172,10 @@ interface AppContextType {
   reviewSubmissions: ReviewSubmission[];
   adminNotes: AdminNote[];
   guptGupshupPosts: GuptGupshupPost[];
+  goals: Goal[];
+  keyResults: KeyResult[];
+  krCheckIns: KRCheckIn[];
+  initiatives: Initiative[];
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
   updateUser: (id: string, user: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -147,6 +195,16 @@ interface AppContextType {
   deleteAdminNote: (id: string) => Promise<void>;
   addGuptGupshupPost: (post: Omit<GuptGupshupPost, 'id'>) => Promise<void>;
   updateGuptGupshupPost: (id: string, updates: Partial<GuptGupshupPost>) => Promise<void>;
+  addGoal: (goal: Omit<Goal, 'id'>) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
+  addKeyResult: (kr: Omit<KeyResult, 'id'>) => Promise<void>;
+  updateKeyResult: (id: string, updates: Partial<KeyResult>) => Promise<void>;
+  deleteKeyResult: (id: string) => Promise<void>;
+  addKRCheckIn: (checkIn: Omit<KRCheckIn, 'id'>) => Promise<void>;
+  addInitiative: (initiative: Omit<Initiative, 'id'>) => Promise<void>;
+  updateInitiative: (id: string, updates: Partial<Initiative>) => Promise<void>;
+  deleteInitiative: (id: string) => Promise<void>;
   uploadFile: (file: File, path: string) => Promise<string>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
@@ -166,6 +224,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [reviewSubmissions, setReviewSubmissions] = useState<ReviewSubmission[]>([]);
   const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
   const [guptGupshupPosts, setGuptGupshupPosts] = useState<GuptGupshupPost[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [keyResults, setKeyResults] = useState<KeyResult[]>([]);
+  const [krCheckIns, setKrCheckIns] = useState<KRCheckIn[]>([]);
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -223,6 +285,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setGuptGupshupPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GuptGupshupPost)));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'guptGupshupPosts'));
 
+    const unsubGoals = onSnapshot(collection(db, 'goals'), (snapshot) => {
+      setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal)));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'goals'));
+
+    const unsubKeyResults = onSnapshot(collection(db, 'keyResults'), (snapshot) => {
+      setKeyResults(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as KeyResult)));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'keyResults'));
+
+    const unsubKRCheckIns = onSnapshot(collection(db, 'krCheckIns'), (snapshot) => {
+      setKrCheckIns(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as KRCheckIn)));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'krCheckIns'));
+
+    const unsubInitiatives = onSnapshot(collection(db, 'initiatives'), (snapshot) => {
+      setInitiatives(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Initiative)));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'initiatives'));
+
     setIsLoading(false);
 
     return () => {
@@ -236,6 +314,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubReviewSubmissions();
       unsubAdminNotes();
       unsubGuptGupshupPosts();
+      unsubGoals();
+      unsubKeyResults();
+      unsubKRCheckIns();
+      unsubInitiatives();
     };
   }, [user]);
 
@@ -302,6 +384,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateGuptGupshupPost = async (id: string, updates: Partial<GuptGupshupPost>) => {
     await api.updateGuptGupshupPost(id, updates);
   };
+  const addGoal = async (g: Omit<Goal, 'id'>) => {
+    await api.addGoal(g);
+  };
+  const updateGoal = async (id: string, updates: Partial<Goal>) => {
+    await api.updateGoal(id, updates);
+  };
+  const deleteGoal = async (id: string) => {
+    await api.deleteGoal(id);
+  };
+  const addKeyResult = async (kr: Omit<KeyResult, 'id'>) => {
+    await api.addKeyResult(kr);
+  };
+  const updateKeyResult = async (id: string, updates: Partial<KeyResult>) => {
+    await api.updateKeyResult(id, updates);
+  };
+  const deleteKeyResult = async (id: string) => {
+    await api.deleteKeyResult(id);
+  };
+  const addKRCheckIn = async (ci: Omit<KRCheckIn, 'id'>) => {
+    await api.addKRCheckIn(ci);
+  };
+  const addInitiative = async (i: Omit<Initiative, 'id'>) => {
+    await api.addInitiative(i);
+  };
+  const updateInitiative = async (id: string, updates: Partial<Initiative>) => {
+    await api.updateInitiative(id, updates);
+  };
+  const deleteInitiative = async (id: string) => {
+    await api.deleteInitiative(id);
+  };
   const uploadFile = async (file: File, path: string) => {
     return await api.uploadFile(file, path);
   };
@@ -309,11 +421,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{ 
       users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes, guptGupshupPosts,
+      goals, keyResults, krCheckIns, initiatives,
       addUser, updateUser, deleteUser, addTeam, updateTeam, 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
       addReviewCycle, updateReviewCycle, addReviewSubmission,
-      addAdminNote, deleteAdminNote, addGuptGupshupPost, updateGuptGupshupPost, uploadFile,
+      addAdminNote, deleteAdminNote, addGuptGupshupPost, updateGuptGupshupPost,
+      addGoal, updateGoal, deleteGoal, addKeyResult, updateKeyResult, deleteKeyResult,
+      addKRCheckIn, addInitiative, updateInitiative, deleteInitiative,
+      uploadFile,
       isLoading, refreshData: loadData 
     }}>
       {children}

@@ -1,4 +1,4 @@
-import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote, GuptGupshupPost } from '../context/AppContext';
+import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote, GuptGupshupPost, Goal, KeyResult, KRCheckIn, Initiative } from '../context/AppContext';
 import { db, auth, firebaseConfig, storage } from '../firebase';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -346,6 +346,96 @@ export const api = {
       await updateDoc(doc(db, 'guptGupshupPosts', id), updates);
     } catch (error) {
       return handleFirestoreError(error, OperationType.UPDATE, `guptGupshupPosts/${id}`);
+    }
+  },
+
+  addGoal: async (goal: Omit<Goal, 'id'>): Promise<Goal> => {
+    try {
+      const docRef = await addDoc(collection(db, 'goals'), goal);
+      return { id: docRef.id, ...goal } as Goal;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, 'goals');
+    }
+  },
+
+  updateGoal: async (id: string, updates: Partial<Goal>): Promise<void> => {
+    try {
+      await updateDoc(doc(db, 'goals', id), updates);
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.UPDATE, `goals/${id}`);
+    }
+  },
+
+  deleteGoal: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'goals', id));
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.DELETE, `goals/${id}`);
+    }
+  },
+
+  addKeyResult: async (kr: Omit<KeyResult, 'id'>): Promise<KeyResult> => {
+    try {
+      const docRef = await addDoc(collection(db, 'keyResults'), kr);
+      return { id: docRef.id, ...kr } as KeyResult;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, 'keyResults');
+    }
+  },
+
+  updateKeyResult: async (id: string, updates: Partial<KeyResult>): Promise<void> => {
+    try {
+      await updateDoc(doc(db, 'keyResults', id), updates);
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.UPDATE, `keyResults/${id}`);
+    }
+  },
+
+  deleteKeyResult: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'keyResults', id));
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.DELETE, `keyResults/${id}`);
+    }
+  },
+
+  addKRCheckIn: async (checkIn: Omit<KRCheckIn, 'id'>): Promise<KRCheckIn> => {
+    try {
+      const docRef = await addDoc(collection(db, 'krCheckIns'), checkIn);
+      // Also update the KR's current value and status
+      const krRef = doc(db, 'keyResults', checkIn.krId);
+      await updateDoc(krRef, {
+        currentValue: checkIn.value,
+        status: checkIn.status
+      });
+      return { id: docRef.id, ...checkIn } as KRCheckIn;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, 'krCheckIns');
+    }
+  },
+
+  addInitiative: async (initiative: Omit<Initiative, 'id'>): Promise<Initiative> => {
+    try {
+      const docRef = await addDoc(collection(db, 'initiatives'), initiative);
+      return { id: docRef.id, ...initiative } as Initiative;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, 'initiatives');
+    }
+  },
+
+  updateInitiative: async (id: string, updates: Partial<Initiative>): Promise<void> => {
+    try {
+      await updateDoc(doc(db, 'initiatives', id), updates);
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.UPDATE, `initiatives/${id}`);
+    }
+  },
+
+  deleteInitiative: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'initiatives', id));
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.DELETE, `initiatives/${id}`);
     }
   },
 

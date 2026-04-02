@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Users, UsersRound, LayoutDashboard, Bell, Search, LogOut, Calendar, Settings, FileText, TreeDeciduous, MessageSquare, Camera, Loader2, Users as UsersIcon } from 'lucide-react';
+import { Users, UsersRound, LayoutDashboard, Bell, Search, LogOut, Calendar, Settings, FileText, TreeDeciduous, MessageSquare, Camera, Loader2, Users as UsersIcon, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext, User, Team } from '../context/AppContext';
 import { EmployeeProfileModal } from './EmployeeProfileModal';
@@ -73,9 +73,10 @@ export const Layout = () => {
         </div>
 
         <nav className="flex-1 px-4 py-8 space-y-2">
-          <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
+          <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Drishyam" />
           <NavItem to="/sabha" icon={<Users size={20} />} label="Sabha" />
           <NavItem to="/attendance" icon={<Calendar size={20} />} label="Hazri" />
+          <NavItem to="/lakshya" icon={<Target size={20} />} label="Lakshya" />
           <NavItem to="/reviews" icon={<MessageSquare size={20} />} label="Charcha" />
           <NavItem to="/documents" icon={<FileText size={20} />} label="Khaata" />
           {(user?.role === 'Admin' || user?.role === 'Sarpanch') && (

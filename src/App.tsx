@@ -8,11 +8,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
-import { Dashboard } from './pages/Dashboard';
+import { Drishyam } from './pages/Dashboard';
 import { Sabha } from './pages/Sabha';
 import { Login } from './pages/Login';
 import { Attendance } from './pages/Attendance';
 import { Sarpanch } from './pages/Sarpanch';
+import Lakshya from './pages/Lakshya';
 import { Documents } from './pages/Documents';
 import { Charcha } from './pages/Charcha';
 import { db } from './firebase';
@@ -46,9 +47,10 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Drishyam />} />
         <Route path="sabha" element={<Sabha />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="lakshya" element={<Lakshya />} />
         <Route path="reviews" element={<Charcha />} />
         <Route path="admin" element={<Sarpanch />} />
         <Route path="documents" element={<Documents />} />
