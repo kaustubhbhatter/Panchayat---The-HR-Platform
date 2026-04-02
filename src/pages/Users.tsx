@@ -183,7 +183,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         };
         
         // Remove empty optional fields to satisfy Firestore rules
-        if (!newUser.managerId || newUser.role === 'Admin' || newUser.role === 'Sarpanch') newUser.managerId = null;
+        if (!newUser.managerId || newUser.role === 'Admin' || newUser.role === 'Sarpanch') delete newUser.managerId;
         if (!newUser.joiningDate) delete newUser.joiningDate;
         if (!newUser.internshipDate) delete newUser.internshipDate;
         if (!newUser.conversionDate) delete newUser.conversionDate;

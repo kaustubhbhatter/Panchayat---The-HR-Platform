@@ -67,7 +67,7 @@ service cloud.firestore {
              data.teamIds is list && data.teamIds.size() <= 20 &&
              data.avatar is string && data.avatar.size() <= 1000 &&
              data.status in ['Active', 'Inactive'] &&
-             (!('managerId' in data) || (data.managerId is string && data.managerId.size() <= 100)) &&
+             (!('managerId' in data) || data.managerId == null || (data.managerId is string && data.managerId.size() <= 100)) &&
              (!('joiningDate' in data) || (data.joiningDate is string && data.joiningDate.size() <= 50)) &&
              (!('internshipDate' in data) || (data.internshipDate is string && data.internshipDate.size() <= 50)) &&
              (!('conversionDate' in data) || (data.conversionDate is string && data.conversionDate.size() <= 50)) &&
@@ -76,7 +76,8 @@ service cloud.firestore {
              (!('creditedLeaves' in data) || data.creditedLeaves is number) &&
              (!('isIntern' in data) || data.isIntern is bool) &&
              (!('birthday' in data) || (data.birthday is string && data.birthday.size() <= 50)) &&
-             (!('anniversary' in data) || (data.anniversary is string && data.anniversary.size() <= 50));
+             (!('anniversary' in data) || (data.anniversary is string && data.anniversary.size() <= 50)) &&
+             (!('journey' in data) || data.journey is list);
     }
 
     function isValidTeam() {
