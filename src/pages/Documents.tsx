@@ -79,7 +79,7 @@ export const Documents = () => {
           <h2 className="text-2xl font-bold text-slate-800">Khaata (Documents)</h2>
           <p className="text-slate-500">Company policies, guidelines, and resources.</p>
         </div>
-        {user?.role === 'Admin' && (
+        {(user?.role === 'Admin' || user?.role === 'Sarpanch') && (
           <button
             onClick={() => setIsAdding(true)}
             className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors shadow-sm shadow-violet-600/20"
@@ -229,7 +229,7 @@ export const Documents = () => {
               
               <div className="text-xs text-slate-400 font-medium">Added by {doc.addedBy}</div>
               
-              {user?.role === 'Admin' && (
+              {(user?.role === 'Admin' || user?.role === 'Sarpanch') && (
                 <button
                   onClick={(e) => {
                     e.preventDefault();

@@ -149,6 +149,17 @@ service cloud.firestore {
              data.createdBy == request.auth.uid;
     }
 
+    function isValidGuptGupshupPost() {
+      let data = request.resource.data;
+      return hasRequiredFields(['content', 'authorId', 'isAnonymous', 'upvotes', 'createdAt', 'dismissedBy']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             data.authorId is string && data.authorId.size() <= 100 &&
+             data.isAnonymous is bool &&
+             data.upvotes is list &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.dismissedBy is list;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -224,6 +235,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAdmin() && isValidAdminNote();
       allow update: if isAdmin() && isValidAdminNote();
+      allow delete: if isAdmin();
+    }
+
+    match /guptGupshupPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidGuptGupshupPost() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidGuptGupshupPost(); // Allow any authenticated user to upvote/dismiss
       allow delete: if isAdmin();
     }
   }

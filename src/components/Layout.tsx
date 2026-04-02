@@ -62,7 +62,7 @@ export const Layout = () => {
           <NavItem to="/attendance" icon={<Calendar size={20} />} label="Hazri" />
           <NavItem to="/reviews" icon={<MessageSquare size={20} />} label="Charcha" />
           <NavItem to="/documents" icon={<FileText size={20} />} label="Khaata" />
-          {user?.role === 'Admin' && (
+          {(user?.role === 'Admin' || user?.role === 'Sarpanch') && (
             <NavItem to="/admin" icon={<Settings size={20} />} label="Sarpanch" />
           )}
         </nav>

@@ -10,36 +10,6 @@ export const Dashboard = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Upcoming Holidays & Leaves (next 30 days)
-  const upcomingHolidays = [
-    ...holidays.map(h => ({
-      id: h.id,
-      type: 'Public Holiday',
-      name: h.name,
-      startDate: h.date,
-      endDate: h.date,
-      isHoliday: true
-    })),
-    ...leaves
-      .filter(l => l.status === 'Approved')
-      .map(l => ({
-        id: l.id,
-        type: l.type,
-        userId: l.userId,
-        startDate: l.startDate,
-        endDate: l.endDate,
-        isHoliday: false
-      }))
-  ]
-    .filter(item => {
-      const date = new Date(item.startDate);
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(today.getDate() + 30);
-      return date >= today && date <= thirtyDaysFromNow;
-    })
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-    .slice(0, 5);
-
   // Upcoming Events (Birthdays & Anniversaries in next 30 days)
   const upcomingEvents = users.flatMap(u => {
     const events = [];
@@ -72,8 +42,63 @@ export const Dashboard = () => {
 
   // Active Admin Notes
   const activeNotes = adminNotes
-    .filter(n => new Date(n.expiryDate) >= today)
+    .filter(n => {
+      const expiry = new Date(n.expiryDate);
+      expiry.setHours(23, 59, 59, 999); // End of the expiry day
+      return expiry >= today;
+    })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const days = [];
+    // Padding for previous month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+    // Days of current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(new Date(year, month, i));
+    }
+    return days;
+  };
+
+  const calendarDays = getDaysInMonth(currentMonth);
+
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const dayHolidays = holidays.filter(h => h.date === dateStr);
+    const dayLeaves = leaves.filter(l => {
+      if (l.status !== 'Approved') return false;
+      const start = new Date(l.startDate);
+      const end = new Date(l.endDate);
+      const current = new Date(date);
+      start.setHours(0,0,0,0);
+      end.setHours(0,0,0,0);
+      current.setHours(0,0,0,0);
+      
+      if (current < start || current > end) return false;
+      
+      // Only show leaves of villagers in my team or my own leaves
+      if (l.userId === user?.id) return true;
+      const requestor = users.find(u => u.id === l.userId);
+      if (!requestor) return false;
+      const requestorTeams = teams.filter(t => requestor.teamIds?.includes(t.id));
+      const myTeams = teams.filter(t => user?.teamIds?.includes(t.id) || t.managerIds?.includes(user?.id || ''));
+      const shareTeam = requestorTeams.some(rt => myTeams.some(mt => mt.id === rt.id));
+      return shareTeam;
+    });
+    return { holidays: dayHolidays, leaves: dayLeaves };
+  };
+
+  const selectedEvents = getEventsForDate(selectedDate);
 
   return (
     <div className="space-y-8">
@@ -111,9 +136,6 @@ export const Dashboard = () => {
                 {activeNotes.map(note => (
                   <div key={note.id} className="border-l-2 border-amber-200 pl-3 py-1">
                     <p className="text-sm font-bold text-stone-800 line-clamp-2">{note.content}</p>
-                    <p className="text-[10px] text-stone-400 mt-1">
-                      Expires: {new Date(note.expiryDate).toLocaleDateString()}
-                    </p>
                   </div>
                 ))}
               </div>
@@ -124,60 +146,128 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Holidays */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-stone-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-50 text-blue-500 rounded-xl">
-              <Calendar size={20} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendar Card */}
+        <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-stone-100 overflow-hidden flex flex-col md:flex-row">
+          {/* Left: Calendar */}
+          <div className="p-6 md:w-1/2 border-b md:border-b-0 md:border-r border-stone-100">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-stone-800">
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </h3>
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
+                  className="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button 
+                  onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
+                  className="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
             </div>
-            <h3 className="text-lg font-bold text-stone-800">Upcoming Holidays</h3>
-          </div>
-          
-          <div className="space-y-4">
-            {upcomingHolidays.length > 0 ? (
-              upcomingHolidays.map(item => {
-                if (item.isHoliday) {
-                  return (
-                    <div key={item.id} className="flex items-center gap-4 p-3 bg-rose-50/50 rounded-2xl border border-rose-100/50">
-                      <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center">
-                        <Calendar size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-stone-800">{item.name}</p>
-                        <p className="text-sm text-rose-600 font-medium">Public Holiday</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-stone-700">
-                          {new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
 
-                const leaveUser = users.find(u => u.id === item.userId);
+            <div className="grid grid-cols-7 gap-1 text-center mb-2">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <span key={`${d}-${i}`} className="text-[10px] font-bold text-stone-400 uppercase">{d}</span>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1">
+              {calendarDays.map((date, i) => {
+                if (!date) return <div key={`empty-${i}`} className="aspect-square" />;
+                
+                const events = getEventsForDate(date);
+                const isSelected = date.toDateString() === selectedDate.toDateString();
+                const isToday = date.toDateString() === new Date().toDateString();
+                const isSunday = date.getDay() === 0;
+                const hasHoliday = events.holidays.length > 0 || isSunday;
+                const hasLeave = events.leaves.length > 0;
+                const hasMyLeave = events.leaves.some(l => l.userId === user?.id);
+
                 return (
-                  <div key={item.id} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors">
-                    <img src={leaveUser?.avatar || `https://ui-avatars.com/api/?name=${leaveUser?.name}`} alt={leaveUser?.name} className="w-10 h-10 rounded-full object-cover" />
-                    <div className="flex-1">
-                      <p className="font-bold text-stone-800">{leaveUser?.name}</p>
-                      <p className="text-sm text-stone-500">{item.type}</p>
+                  <button
+                    key={date.toISOString()}
+                    onClick={() => setSelectedDate(date)}
+                    className={`
+                      aspect-square rounded-xl text-xs font-medium flex flex-col items-center justify-center relative transition-all
+                      ${isSelected ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : isSunday ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'hover:bg-stone-50 text-stone-700'}
+                      ${isToday && !isSelected ? 'border-2 border-orange-200' : ''}
+                    `}
+                  >
+                    {date.getDate()}
+                    <div className="flex gap-0.5 mt-0.5">
+                      {events.holidays.length > 0 && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-rose-500'}`} />}
+                      {hasMyLeave && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}`} />}
+                      {hasLeave && !hasMyLeave && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-stone-400'}`} />}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-stone-700">
-                        {new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                      <p className="text-xs text-stone-500">
-                        to {new Date(item.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
+                  </button>
                 );
-              })
-            ) : (
-              <p className="text-stone-500 text-center py-4">No upcoming holidays or leaves in the next 30 days.</p>
-            )}
+              })}
+            </div>
+          </div>
+
+          {/* Right: Details */}
+          <div className="p-6 md:w-1/2 bg-stone-50/30 flex flex-col">
+            <div className="mb-6">
+              <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">
+                {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+              </p>
+              <h4 className="text-xl font-black text-stone-800">
+                {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+              </h4>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+              {selectedEvents.holidays.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Public Holidays</p>
+                  {selectedEvents.holidays.map(h => (
+                    <div key={h.id} className="flex items-center gap-3 p-3 bg-yellow-50 rounded-2xl border border-yellow-100">
+                      <div className="w-8 h-8 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center">
+                        <Calendar size={16} />
+                      </div>
+                      <p className="text-sm font-bold text-stone-800">{h.name}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedEvents.leaves.length > 0 && selectedDate.toDateString() === new Date().toDateString() && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Villagers chilling today</p>
+                  {selectedEvents.leaves.map(l => {
+                    const leaveUser = users.find(u => u.id === l.userId);
+                    return (
+                      <div key={l.id} className="flex items-center gap-3 p-3 bg-stone-50 rounded-2xl border border-stone-100">
+                        <img 
+                          src={leaveUser?.avatar || `https://ui-avatars.com/api/?name=${leaveUser?.name}`} 
+                          alt={leaveUser?.name} 
+                          className="w-8 h-8 rounded-full object-cover grayscale" 
+                        />
+                        <div>
+                          <p className="text-sm font-bold text-stone-800">{leaveUser?.name} {l.userId === user?.id ? '(Me)' : ''}</p>
+                          <p className="text-[10px] text-stone-500 font-medium">{l.type}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedEvents.holidays.length === 0 && (selectedEvents.leaves.length === 0 || selectedDate.toDateString() !== new Date().toDateString()) && (
+                <div className="h-full flex flex-col items-center justify-center text-center py-8">
+                  <div className="w-12 h-12 bg-stone-100 text-stone-300 rounded-full flex items-center justify-center mb-3">
+                    <Calendar size={24} />
+                  </div>
+                  <p className="text-sm text-stone-400 font-medium">No holidays or leaves<br/>on this day.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -15,7 +15,7 @@ import { ResetPassword } from './pages/ResetPassword';
 import { Attendance } from './pages/Attendance';
 import { Sarpanch } from './pages/Sarpanch';
 import { Documents } from './pages/Documents';
-import { Reviews } from './pages/Reviews';
+import { Charcha } from './pages/Charcha';
 import { db } from './firebase';
 import { doc, getDocFromServer } from 'firebase/firestore';
 
@@ -51,7 +51,7 @@ const AppRoutes = () => {
         <Route index element={<Dashboard />} />
         <Route path="sabha" element={<Sabha />} />
         <Route path="attendance" element={<Attendance />} />
-        <Route path="reviews" element={<Reviews />} />
+        <Route path="reviews" element={<Charcha />} />
         <Route path="admin" element={<Sarpanch />} />
         <Route path="documents" element={<Documents />} />
       </Route>

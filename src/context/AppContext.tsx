@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
 
-export type Role = 'Admin' | 'Team Leader' | 'IC';
+export type Role = 'Admin' | 'Team Leader' | 'IC' | 'Sarpanch' | 'Karyakarta';
 
 export interface User {
   id: string;
@@ -50,6 +50,7 @@ export interface LeaveRequest {
   type: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   reason: string;
+  duration?: 'full' | 'first_half' | 'second_half';
 }
 
 export interface Holiday {
@@ -63,6 +64,8 @@ export interface AppSettings {
   defaultWfhQuota?: number;
   companyName?: string;
   workDaysPerWeek?: number;
+  guptGupshupEnabled?: boolean;
+  showUpvotersToAdmin?: boolean;
 }
 
 export interface DocumentItem {
@@ -94,6 +97,16 @@ export interface ReviewSubmission {
   submittedAt: string;
 }
 
+export interface GuptGupshupPost {
+  id: string;
+  content: string;
+  authorId: string;
+  isAnonymous: boolean;
+  upvotes: string[]; // array of userIds
+  createdAt: string;
+  dismissedBy: string[]; // array of userIds who dismissed it
+}
+
 interface AppContextType {
   users: User[];
   teams: Team[];
@@ -104,6 +117,7 @@ interface AppContextType {
   reviewCycles: ReviewCycle[];
   reviewSubmissions: ReviewSubmission[];
   adminNotes: AdminNote[];
+  guptGupshupPosts: GuptGupshupPost[];
   addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<void>;
   updateUser: (id: string, user: Partial<User> & { password?: string }) => Promise<void>;
   addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -120,6 +134,8 @@ interface AppContextType {
   addReviewSubmission: (submission: Omit<ReviewSubmission, 'id'>) => Promise<void>;
   addAdminNote: (note: Omit<AdminNote, 'id'>) => Promise<void>;
   deleteAdminNote: (id: string) => Promise<void>;
+  addGuptGupshupPost: (post: Omit<GuptGupshupPost, 'id'>) => Promise<void>;
+  updateGuptGupshupPost: (id: string, updates: Partial<GuptGupshupPost>) => Promise<void>;
   uploadFile: (file: File, path: string) => Promise<string>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
@@ -138,6 +154,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [reviewCycles, setReviewCycles] = useState<ReviewCycle[]>([]);
   const [reviewSubmissions, setReviewSubmissions] = useState<ReviewSubmission[]>([]);
   const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
+  const [guptGupshupPosts, setGuptGupshupPosts] = useState<GuptGupshupPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -191,6 +208,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAdminNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminNote)));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'adminNotes'));
 
+    const unsubGuptGupshupPosts = onSnapshot(collection(db, 'guptGupshupPosts'), (snapshot) => {
+      setGuptGupshupPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GuptGupshupPost)));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'guptGupshupPosts'));
+
     setIsLoading(false);
 
     return () => {
@@ -203,6 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubReviewCycles();
       unsubReviewSubmissions();
       unsubAdminNotes();
+      unsubGuptGupshupPosts();
     };
   }, [user]);
 
@@ -260,18 +282,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteAdminNote = async (id: string) => {
     await api.deleteAdminNote(id);
   };
+  const addGuptGupshupPost = async (post: Omit<GuptGupshupPost, 'id'>) => {
+    await api.addGuptGupshupPost(post);
+  };
+  const updateGuptGupshupPost = async (id: string, updates: Partial<GuptGupshupPost>) => {
+    await api.updateGuptGupshupPost(id, updates);
+  };
   const uploadFile = async (file: File, path: string) => {
     return await api.uploadFile(file, path);
   };
 
   return (
     <AppContext.Provider value={{ 
-      users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes,
+      users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes, guptGupshupPosts,
       addUser, updateUser, addTeam, updateTeam, 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
       addReviewCycle, updateReviewCycle, addReviewSubmission,
-      addAdminNote, deleteAdminNote, uploadFile,
+      addAdminNote, deleteAdminNote, addGuptGupshupPost, updateGuptGupshupPost, uploadFile,
       isLoading, refreshData: loadData 
     }}>
       {children}

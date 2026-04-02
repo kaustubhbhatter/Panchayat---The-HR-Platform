@@ -43,7 +43,7 @@ export const Users = () => {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
-          {currentUser?.role === 'Admin' && (
+          {(currentUser?.role === 'Admin' || currentUser?.role === 'Sarpanch') && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-violet-600/20"
@@ -69,7 +69,7 @@ export const Users = () => {
           
           return (
             <div key={user.id} className={`bg-white rounded-xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative group ${!isActive ? 'opacity-60' : ''}`}>
-              {currentUser?.role === 'Admin' && (
+              {(currentUser?.role === 'Admin' || currentUser?.role === 'Sarpanch') && (
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => setEditingUser(user)}
@@ -94,7 +94,9 @@ export const Users = () => {
                     {user.name}
                     {!isActive && <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-medium">Inactive</span>}
                   </h3>
-                  <p className="text-xs text-violet-600 font-medium truncate">{user.role}</p>
+                  <p className="text-xs text-violet-600 font-medium truncate">
+                    {user.role === 'Admin' || user.role === 'Sarpanch' ? 'Sarpanch' : teams.some(t => t.managerIds.includes(user.id)) ? 'Mukhiya' : 'Karyakarta'}
+                  </p>
                   
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {userTeams.slice(0, 2).map(t => (
@@ -140,7 +142,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    role: user?.role || 'IC' as Role,
+    role: (user?.role === 'Admin' || user?.role === 'Sarpanch') ? 'Sarpanch' : 'Karyakarta' as Role,
     teamIds: user?.teamIds || [],
     managerId: user?.managerId || '',
     status: user?.status || 'Active',
@@ -167,7 +169,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         const updates: any = { ...formData };
         if (!updates.password) delete updates.password;
         // Remove empty optional fields to satisfy Firestore rules
-        if (!updates.managerId || updates.role === 'Admin') updates.managerId = null;
+        if (!updates.managerId || updates.role === 'Admin' || updates.role === 'Sarpanch') updates.managerId = null;
         if (!updates.joiningDate) delete updates.joiningDate;
         if (!updates.internshipDate) delete updates.internshipDate;
         if (!updates.conversionDate) delete updates.conversionDate;
@@ -183,7 +185,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
         };
         
         // Remove empty optional fields to satisfy Firestore rules
-        if (!newUser.managerId || newUser.role === 'Admin') newUser.managerId = null;
+        if (!newUser.managerId || newUser.role === 'Admin' || newUser.role === 'Sarpanch') newUser.managerId = null;
         if (!newUser.joiningDate) delete newUser.joiningDate;
         if (!newUser.internshipDate) delete newUser.internshipDate;
         if (!newUser.conversionDate) delete newUser.conversionDate;
@@ -281,20 +283,19 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
                   <select
-                    disabled={currentUser?.role !== 'Admin'}
+                    disabled={currentUser?.role !== 'Admin' && currentUser?.role !== 'Sarpanch'}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.role}
                     onChange={e => setFormData({...formData, role: e.target.value as Role})}
                   >
-                    <option value="IC">IC</option>
-                    <option value="Team Leader">Team Leader</option>
-                    <option value="Admin">Admin</option>
+                    <option value="Karyakarta">Karyakarta</option>
+                    <option value="Sarpanch">Sarpanch</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
                   <select
-                    disabled={currentUser?.role !== 'Admin'}
+                    disabled={currentUser?.role !== 'Admin' && currentUser?.role !== 'Sarpanch'}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.status}
                     onChange={e => setFormData({...formData, status: e.target.value as any})}
@@ -309,18 +310,18 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
             {/* Employment & Teams */}
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Employment & Teams</h3>
-              {formData.role !== 'Admin' && (
+              {formData.role !== 'Admin' && formData.role !== 'Sarpanch' && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Manager</label>
                   <select
-                    disabled={currentUser?.role !== 'Admin'}
+                    disabled={currentUser?.role !== 'Admin' && currentUser?.role !== 'Sarpanch'}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.managerId}
                     onChange={e => setFormData({...formData, managerId: e.target.value})}
                   >
                     <option value="">No Manager</option>
                     {users.filter(u => u.id !== user?.id).map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                      <option key={u.id} value={u.id}>{u.name} ({u.role === 'Admin' || u.role === 'Sarpanch' ? 'Sarpanch' : teams.some(t => t.managerIds.includes(u.id)) ? 'Mukhiya' : 'Karyakarta'})</option>
                     ))}
                   </select>
                 </div>
@@ -329,7 +330,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Joining Date</label>
                   <input
-                    disabled={currentUser?.role !== 'Admin'}
+                    disabled={currentUser?.role !== 'Admin' && currentUser?.role !== 'Sarpanch'}
                     type="date"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"
                     value={formData.joiningDate}
@@ -339,7 +340,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Credited Leaves</label>
                   <input
-                    disabled={currentUser?.role !== 'Admin'}
+                    disabled={currentUser?.role !== 'Admin' && currentUser?.role !== 'Sarpanch'}
                     type="number"
                     min="0"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all disabled:opacity-50"

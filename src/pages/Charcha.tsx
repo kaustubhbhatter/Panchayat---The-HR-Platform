@@ -4,12 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { Plus, CheckCircle2, Clock, MessageSquare, Users, Building, Calendar } from 'lucide-react';
 
 export const Charcha = () => {
-  const { users, teams, reviewCycles, reviewSubmissions, addReviewCycle, addReviewSubmission } = useAppContext();
+  const { users, teams, reviewCycles, reviewSubmissions, addReviewCycle, addReviewSubmission, settings, guptGupshupPosts, addGuptGupshupPost, updateGuptGupshupPost } = useAppContext();
   const { user } = useAuth();
   
-  const [activeTab, setActiveTab] = useState<'pending' | 'past' | 'admin'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'past' | 'admin' | 'gupt'>('pending');
   
-  const isManagerOrAdmin = user?.role === 'Admin' || user?.role === 'HR' || user?.role === 'Team Lead' || users.some(u => u.managerId === user?.id);
+  const isManagerOrAdmin = user?.role === 'Admin' || user?.role === 'Sarpanch' || user?.role === 'HR' || user?.role === 'Team Lead' || users.some(u => u.managerId === user?.id);
+  const isSarpanch = user?.role === 'Admin' || user?.role === 'Sarpanch';
 
   // Admin Setup State
   const [isCreating, setIsCreating] = useState(false);
@@ -135,7 +136,15 @@ export const Charcha = () => {
               onClick={() => setActiveTab('admin')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'admin' ? 'bg-orange-100 text-orange-700' : 'text-stone-600 hover:bg-stone-50'}`}
             >
-              Admin Setup
+              Setup
+            </button>
+          )}
+          {settings.guptGupshupEnabled && (
+            <button
+              onClick={() => setActiveTab('gupt')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'gupt' ? 'bg-orange-100 text-orange-700' : 'text-stone-600 hover:bg-stone-50'}`}
+            >
+              Gupt Gupshup
             </button>
           )}
         </div>
@@ -378,7 +387,158 @@ export const Charcha = () => {
               </div>
             </div>
           )}
+
+          {activeTab === 'gupt' && settings.guptGupshupEnabled && (
+            <GuptGupshupTab 
+              posts={guptGupshupPosts} 
+              addPost={addGuptGupshupPost} 
+              updatePost={updateGuptGupshupPost} 
+              currentUser={user!} 
+              users={users}
+              isSarpanch={isSarpanch}
+              showUpvotersToAdmin={settings.showUpvotersToAdmin}
+            />
+          )}
         </>
+      )}
+    </div>
+  );
+};
+
+const GuptGupshupTab = ({ posts, addPost, updatePost, currentUser, users, isSarpanch, showUpvotersToAdmin }: any) => {
+  const [newPostContent, setNewPostContent] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [showDismissed, setShowDismissed] = useState(false);
+
+  const activePosts = posts.filter((p: any) => !p.dismissedBy?.includes(currentUser.id)).sort((a: any, b: any) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
+  const dismissedPosts = posts.filter((p: any) => p.dismissedBy?.includes(currentUser.id)).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const handlePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPostContent.trim()) return;
+    
+    await addPost({
+      content: newPostContent,
+      authorId: currentUser.id,
+      isAnonymous,
+      upvotes: [],
+      createdAt: new Date().toISOString(),
+      dismissedBy: []
+    });
+    setNewPostContent('');
+  };
+
+  const handleToggleUpvote = async (post: any) => {
+    const upvotes = post.upvotes || [];
+    const hasUpvoted = upvotes.includes(currentUser.id);
+    const newUpvotes = hasUpvoted ? upvotes.filter((id: string) => id !== currentUser.id) : [...upvotes, currentUser.id];
+    await updatePost(post.id, { upvotes: newUpvotes });
+  };
+
+  const handleDismiss = async (post: any) => {
+    const dismissedBy = post.dismissedBy || [];
+    if (!dismissedBy.includes(currentUser.id)) {
+      await updatePost(post.id, { dismissedBy: [...dismissedBy, currentUser.id] });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+        <h3 className="text-lg font-bold text-stone-800 mb-4">Ask or Share Anonymously</h3>
+        <form onSubmit={handlePost} className="space-y-4">
+          <textarea
+            required
+            rows={3}
+            value={newPostContent}
+            onChange={e => setNewPostContent(e.target.value)}
+            className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+            placeholder="What's on your mind?"
+          />
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isAnonymous} 
+                onChange={e => setIsAnonymous(e.target.checked)}
+                className="w-4 h-4 rounded border-stone-300 text-orange-500 focus:ring-orange-500"
+              />
+              <span className="text-sm font-medium text-stone-600">Post Anonymously</span>
+            </label>
+            <button type="submit" className="px-6 py-2 bg-stone-800 text-white font-medium rounded-xl hover:bg-stone-900 transition-colors">
+              Post
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="space-y-4">
+        {activePosts.map((post: any) => {
+          const author = users.find((u: any) => u.id === post.authorId);
+          const hasUpvoted = post.upvotes?.includes(currentUser.id);
+          const upvoters = post.upvotes?.map((id: string) => users.find((u: any) => u.id === id)?.name).filter(Boolean).join(', ');
+
+          return (
+            <div key={post.id} className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center text-stone-500">
+                    {post.isAnonymous ? <MessageSquare size={16} /> : <img src={author?.avatar || `https://ui-avatars.com/api/?name=${author?.name}`} className="w-full h-full rounded-full" alt="avatar" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-stone-800 text-sm">
+                      {post.isAnonymous ? 'Anonymous' : author?.name}
+                      {post.isAnonymous && isSarpanch && <span className="text-xs text-orange-500 ml-2 font-normal">(Real: {author?.name})</span>}
+                    </p>
+                    <p className="text-[10px] text-stone-400">{new Date(post.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                <button onClick={() => handleDismiss(post)} className="text-stone-400 hover:text-stone-600 text-xs">Dismiss</button>
+              </div>
+              <p className="text-stone-700 mt-3">{post.content}</p>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleToggleUpvote(post)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${hasUpvoted ? 'bg-orange-100 text-orange-700' : 'bg-stone-50 text-stone-600 hover:bg-stone-100'}`}
+                  >
+                    <span className="text-lg leading-none">👍</span>
+                    {post.upvotes?.length || 0}
+                  </button>
+                  {isSarpanch && showUpvotersToAdmin && post.upvotes?.length > 0 && (
+                    <span className="text-xs text-stone-400" title={upvoters}>
+                      {post.upvotes.length} upvoter(s)
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {activePosts.length === 0 && (
+          <p className="text-center text-stone-500 py-8">No active discussions.</p>
+        )}
+      </div>
+
+      {dismissedPosts.length > 0 && (
+        <div className="pt-4 border-t border-stone-200">
+          <button 
+            onClick={() => setShowDismissed(!showDismissed)}
+            className="text-sm font-bold text-stone-500 hover:text-stone-700 flex items-center gap-2"
+          >
+            {showDismissed ? 'Hide' : 'Show'} Dismissed Posts ({dismissedPosts.length})
+          </button>
+          
+          {showDismissed && (
+            <div className="mt-4 space-y-4 opacity-70">
+              {dismissedPosts.map((post: any) => (
+                <div key={post.id} className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                  <p className="text-stone-600 text-sm line-clamp-2">{post.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

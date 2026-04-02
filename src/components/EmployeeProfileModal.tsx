@@ -10,7 +10,7 @@ export const EmployeeProfileModal = ({ user, onClose }: { user: User, onClose: (
   const [isEditingPhoto, setIsEditingPhoto] = useState(false);
   const [newAvatarUrl, setNewAvatarUrl] = useState(user.avatar);
 
-  const isManagerOrAdmin = currentUser?.role === 'Admin' || currentUser?.id === user.managerId;
+  const isManagerOrAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Sarpanch' || currentUser?.id === user.managerId;
 
   const userLeaves = leaves.filter(l => l.userId === user.id);
   const userReviews = reviewSubmissions.filter(r => r.revieweeId === user.id);
@@ -44,7 +44,7 @@ export const EmployeeProfileModal = ({ user, onClose }: { user: User, onClose: (
                 alt={user.name} 
                 className="w-24 h-24 rounded-2xl border-4 border-white shadow-md object-cover bg-white"
               />
-              {(currentUser?.id === user.id || currentUser?.role === 'Admin') && !isEditingPhoto && (
+              {(currentUser?.id === user.id || currentUser?.role === 'Admin' || currentUser?.role === 'Sarpanch') && !isEditingPhoto && (
                 <button 
                   onClick={() => setIsEditingPhoto(true)}
                   className="absolute bottom-2 right-2 bg-stone-900/70 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"

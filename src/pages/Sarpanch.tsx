@@ -8,11 +8,21 @@ export const Sarpanch = () => {
   const { user } = useAuth();
   const [quota, setQuota] = useState(settings.defaultLeaveQuota.toString());
   const [wfhQuota, setWfhQuota] = useState((settings.defaultWfhQuota || 10).toString());
+  const [guptEnabled, setGuptEnabled] = useState(settings.guptGupshupEnabled || false);
+  const [showUpvoters, setShowUpvoters] = useState(settings.showUpvotersToAdmin || false);
   const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  // Sync local state with context settings when they load/change
+  React.useEffect(() => {
+    setQuota(settings.defaultLeaveQuota.toString());
+    setWfhQuota((settings.defaultWfhQuota || 10).toString());
+    setGuptEnabled(settings.guptGupshupEnabled || false);
+    setShowUpvoters(settings.showUpvotersToAdmin || false);
+  }, [settings]);
   
   const showMessage = (msg: string) => {
     setMessage(msg);
@@ -27,12 +37,17 @@ export const Sarpanch = () => {
   const [newNote, setNewNote] = useState({ content: '', expiryDate: '' });
   const [promotion, setPromotion] = useState({ userId: '', newDesignation: '', date: new Date().toISOString().split('T')[0], description: '' });
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const handleSaveSettings = async () => {
     try {
       await updateSettings({ 
         ...settings, 
         defaultLeaveQuota: parseInt(quota) || 0,
-        defaultWfhQuota: parseInt(wfhQuota) || 0
+        defaultWfhQuota: parseInt(wfhQuota) || 0,
+        guptGupshupEnabled: guptEnabled,
+        showUpvotersToAdmin: showUpvoters
       });
       showMessage('Settings saved successfully');
     } catch (err) {
@@ -125,6 +140,17 @@ export const Sarpanch = () => {
     }
   };
 
+  const [showHistorical, setShowHistorical] = useState(false);
+  
+  const filteredNotes = adminNotes
+    .filter(note => {
+      if (showHistorical) return true;
+      const expiry = new Date(note.expiryDate);
+      expiry.setHours(23, 59, 59, 999);
+      return expiry >= today;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
   const filteredHolidays = holidays.filter(h => new Date(h.date).getFullYear() === selectedYear);
   const availableYears = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
 
@@ -145,14 +171,24 @@ export const Sarpanch = () => {
         <p className="text-stone-500">Configure global application settings and policies.</p>
       </div>
 
-      {/* Admin Notes */}
+      {/* Panchayat Notes */}
       <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-stone-100">
-          <h3 className="text-lg font-bold text-stone-800 flex items-center gap-2">
-            <Megaphone size={20} className="text-orange-500" />
-            Admin Notes
-          </h3>
-          <p className="text-sm text-stone-500 mt-1">Add notes or announcements for the dashboard.</p>
+        <div className="p-6 border-b border-stone-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-stone-800 flex items-center gap-2">
+              <Megaphone size={20} className="text-orange-500" />
+              Panchayat Notes
+            </h3>
+            <p className="text-sm text-stone-500 mt-1">Add notes or announcements for the dashboard.</p>
+          </div>
+          <button 
+            onClick={() => setShowHistorical(!showHistorical)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              showHistorical ? 'bg-orange-100 text-orange-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {showHistorical ? 'Showing All' : 'Show Historical'}
+          </button>
         </div>
         <div className="p-6 border-b border-stone-50 bg-stone-50/50">
           <form onSubmit={handleAddNote} className="flex flex-col gap-4">
@@ -188,22 +224,28 @@ export const Sarpanch = () => {
           </form>
         </div>
         <div className="divide-y divide-stone-100">
-          {adminNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
-            <div key={note.id} className="p-4 px-6 flex items-start justify-between hover:bg-stone-50 transition-colors">
-              <div>
-                <p className="font-bold text-stone-800">{note.content}</p>
-                <p className="text-sm text-stone-500">Expires: {new Date(note.expiryDate).toLocaleDateString()}</p>
+          {filteredNotes.map(note => {
+            const isExpired = new Date(note.expiryDate) < today;
+            return (
+              <div key={note.id} className={`p-4 px-6 flex items-start justify-between hover:bg-stone-50 transition-colors ${isExpired ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-stone-800">{note.content}</p>
+                    {isExpired && <span className="px-1.5 py-0.5 bg-stone-200 text-stone-600 text-[10px] font-bold rounded uppercase tracking-wider">Expired</span>}
+                  </div>
+                  <p className="text-sm text-stone-500">Expires: {new Date(note.expiryDate).toLocaleDateString()}</p>
+                </div>
+                <button
+                  onClick={() => deleteAdminNote(note.id)}
+                  className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
-              <button
-                onClick={() => deleteAdminNote(note.id)}
-                className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
-          ))}
-          {adminNotes.length === 0 && (
-            <div className="p-8 text-center text-stone-500">No active admin notes.</div>
+            );
+          })}
+          {filteredNotes.length === 0 && (
+            <div className="p-8 text-center text-stone-500">No {showHistorical ? '' : 'active'} admin notes.</div>
           )}
         </div>
       </div>
@@ -281,35 +323,68 @@ export const Sarpanch = () => {
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800">Leave Policy</h3>
-          <p className="text-sm text-slate-500 mt-1">Set the default number of annual leaves for employees.</p>
+          <h3 className="text-lg font-bold text-slate-800">Global Settings</h3>
+          <p className="text-sm text-slate-500 mt-1">Configure application-wide settings.</p>
         </div>
-        <div className="p-6 flex items-end gap-4">
-          <div className="flex-1 max-w-xs">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Annual Leave Quota (Days)</label>
-            <input
-              type="number"
-              value={quota}
-              onChange={e => setQuota(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
-            />
+        <div className="p-6 space-y-6">
+          <div className="flex items-end gap-4">
+            <div className="flex-1 max-w-xs">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Annual Leave Quota (Days)</label>
+              <input
+                type="number"
+                value={quota}
+                onChange={e => setQuota(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <div className="flex-1 max-w-xs">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Annual WFH Quota (Days)</label>
+              <input
+                type="number"
+                value={wfhQuota}
+                onChange={e => setWfhQuota(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
           </div>
-          <div className="flex-1 max-w-xs">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Annual WFH Quota (Days)</label>
-            <input
-              type="number"
-              value={wfhQuota}
-              onChange={e => setWfhQuota(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
-            />
+          
+          <div className="border-t border-slate-100 pt-6">
+            <h4 className="text-md font-bold text-slate-800 mb-4">Gupt Gupshup (Anonymous Forum)</h4>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3">
+                <input 
+                  type="checkbox"
+                  checked={guptEnabled}
+                  onChange={e => setGuptEnabled(e.target.checked)}
+                  className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-slate-700 font-medium">Enable Gupt Gupshup Tab</span>
+              </label>
+              
+              <label className="flex items-center gap-3">
+                <input 
+                  type="checkbox"
+                  checked={showUpvoters}
+                  onChange={e => setShowUpvoters(e.target.checked)}
+                  className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                  disabled={!guptEnabled}
+                />
+                <span className={`font-medium ${guptEnabled ? 'text-slate-700' : 'text-slate-400'}`}>
+                  Show names of upvoters to Sarpanch
+                </span>
+              </label>
+            </div>
           </div>
-          <button
-            onClick={handleSaveSettings}
-            className="flex items-center gap-2 px-6 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors"
-          >
-            <Save size={20} />
-            Save Policy
-          </button>
+
+          <div className="pt-4 flex justify-end">
+            <button
+              onClick={handleSaveSettings}
+              className="flex items-center gap-2 px-6 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors"
+            >
+              <Save size={20} />
+              Save Settings
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote } from '../context/AppContext';
+import { User, Team, Role, LeaveRequest, Holiday, AppSettings, DocumentItem, ReviewCycle, ReviewSubmission, AdminNote, GuptGupshupPost } from '../context/AppContext';
 import { db, auth, firebaseConfig, storage } from '../firebase';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -336,6 +336,23 @@ export const api = {
       await deleteDoc(doc(db, 'adminNotes', id));
     } catch (error) {
       return handleFirestoreError(error, OperationType.DELETE, `adminNotes/${id}`);
+    }
+  },
+
+  addGuptGupshupPost: async (post: Omit<GuptGupshupPost, 'id'>): Promise<GuptGupshupPost> => {
+    try {
+      const docRef = await addDoc(collection(db, 'guptGupshupPosts'), post);
+      return { id: docRef.id, ...post } as GuptGupshupPost;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, 'guptGupshupPosts');
+    }
+  },
+
+  updateGuptGupshupPost: async (id: string, updates: Partial<GuptGupshupPost>): Promise<void> => {
+    try {
+      await updateDoc(doc(db, 'guptGupshupPosts', id), updates);
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.UPDATE, `guptGupshupPosts/${id}`);
     }
   },
 

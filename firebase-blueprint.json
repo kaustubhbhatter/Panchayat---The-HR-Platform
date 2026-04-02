@@ -118,6 +118,20 @@
         "submittedAt": { "type": "string", "format": "date-time", "description": "When the review was submitted." }
       },
       "required": ["cycleId", "reviewerId", "answers", "submittedAt"]
+    },
+    "GuptGupshupPost": {
+      "title": "GuptGupshupPost",
+      "description": "An anonymous post in the Gupt Gupshup forum.",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string", "description": "The content of the post." },
+        "authorId": { "type": "string", "description": "The ID of the user who created the post." },
+        "isAnonymous": { "type": "boolean", "description": "Whether the post is anonymous." },
+        "upvotes": { "type": "array", "items": { "type": "string" }, "description": "IDs of users who upvoted the post." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the post was created." },
+        "dismissedBy": { "type": "array", "items": { "type": "string" }, "description": "IDs of users who dismissed the post." }
+      },
+      "required": ["content", "authorId", "isAnonymous", "upvotes", "createdAt", "dismissedBy"]
     }
   },
   "firestore": {
@@ -156,6 +170,10 @@
     "/reviewSubmissions/{submissionId}": {
       "schema": "ReviewSubmission",
       "description": "Stores review submissions."
+    },
+    "/guptGupshupPosts/{postId}": {
+      "schema": "GuptGupshupPost",
+      "description": "Stores Gupt Gupshup posts."
     }
   }
 }

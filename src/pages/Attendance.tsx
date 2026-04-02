@@ -18,13 +18,12 @@ export const Attendance = () => {
 
   const isManager = users.some(u => u.managerId === user?.id) || 
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
-                    user?.role === 'Admin';
+                    user?.role === 'Admin' || user?.role === 'Sarpanch';
   
   const myLeaves = leaves.filter(l => l.userId === user?.id && new Date(l.startDate).getFullYear() === selectedYear);
   const pendingRequests = leaves.filter(l => {
     if (l.status !== 'Pending') return false;
     if (new Date(l.startDate).getFullYear() !== selectedYear) return false;
-    if (user?.role === 'Admin') return true;
     
     // Check if current user is the manager of the requester
     if (l.managerId === user?.id) return true;

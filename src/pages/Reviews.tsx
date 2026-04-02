@@ -9,7 +9,7 @@ export const Reviews = () => {
   
   const [activeTab, setActiveTab] = useState<'pending' | 'past' | 'admin'>('pending');
   
-  const isManagerOrAdmin = user?.role === 'Admin' || user?.role === 'Team Leader' || users.some(u => u.managerId === user?.id);
+  const isManagerOrAdmin = user?.role === 'Admin' || user?.role === 'Sarpanch' || user?.role === 'Team Leader' || users.some(u => u.managerId === user?.id);
 
   // Admin Setup State
   const [isCreating, setIsCreating] = useState(false);
@@ -149,7 +149,7 @@ export const Reviews = () => {
               onClick={() => setActiveTab('admin')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'admin' ? 'bg-orange-100 text-orange-700' : 'text-stone-600 hover:bg-stone-50'}`}
             >
-              Admin Setup
+              Setup
             </button>
           )}
         </div>

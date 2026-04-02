@@ -14,17 +14,16 @@ export const Hazri = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   // Apply leave state
-  const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '' });
+  const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '', duration: 'full' as 'full' | 'first_half' | 'second_half' });
 
   const isManager = users.some(u => u.managerId === user?.id) || 
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
-                    user?.role === 'Admin' || user?.role === 'HR';
+                    user?.role === 'Admin' || user?.role === 'Sarpanch' || user?.role === 'HR';
   
   const myLeaves = leaves.filter(l => l.userId === user?.id && new Date(l.startDate).getFullYear() === selectedYear);
   const pendingRequests = leaves.filter(l => {
     if (l.status !== 'Pending') return false;
     if (new Date(l.startDate).getFullYear() !== selectedYear) return false;
-    if (user?.role === 'Admin' || user?.role === 'HR') return true;
     const requestor = users.find(u => u.id === l.userId);
     if (!requestor) return false;
     if (requestor.managerId === user?.id) return true;
@@ -42,9 +41,10 @@ export const Hazri = () => {
       endDate: newLeave.endDate,
       type: newLeave.type,
       reason: newLeave.reason,
+      duration: newLeave.duration,
       status: 'Pending'
     });
-    setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '' });
+    setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '', duration: 'full' });
     setActiveTab('my-leaves');
   };
 
@@ -81,7 +81,7 @@ export const Hazri = () => {
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
 
   // Calculate working days between two dates
-  const calculateWorkingDays = (startDate: string, endDate: string) => {
+  const calculateWorkingDays = (startDate: string, endDate: string, duration?: 'full' | 'first_half' | 'second_half') => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     let workingDays = 0;
@@ -89,8 +89,15 @@ export const Hazri = () => {
     let current = new Date(start);
     while (current <= end) {
       const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-      if (!isWeekend(current) && !isHoliday(dateStr)) {
-        workingDays++;
+      if (current.getDay() !== 0 && !isHoliday(dateStr)) {
+        let dayValue = 1;
+        if (current.getDay() === 6) {
+          dayValue = 0.5; // Saturday is half day
+        }
+        if (duration === 'first_half' || duration === 'second_half') {
+          dayValue = dayValue * 0.5;
+        }
+        workingDays += dayValue;
       }
       current.setDate(current.getDate() + 1);
     }
@@ -100,13 +107,13 @@ export const Hazri = () => {
   const approvedLeavesDays = useMemo(() => {
     return myLeaves
       .filter(l => l.status === 'Approved' && l.type !== 'Work From Home')
-      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate, l.duration), 0);
   }, [myLeaves, holidays]);
 
   const approvedWfhDays = useMemo(() => {
     return myLeaves
       .filter(l => l.status === 'Approved' && l.type === 'Work From Home')
-      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate, l.duration), 0);
   }, [myLeaves, holidays]);
 
   const availableYears = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
@@ -300,12 +307,33 @@ export const Hazri = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Duration</label>
+                    <select
+                      value={newLeave.duration}
+                      onChange={e => setNewLeave({...newLeave, duration: e.target.value as any})}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 bg-white"
+                    >
+                      <option value="full">Full Day</option>
+                      <option value="first_half">First Half</option>
+                      <option value="second_half">Second Half</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
                     <input
                       type="date"
                       required
                       value={newLeave.startDate}
-                      onChange={e => setNewLeave({...newLeave, startDate: e.target.value})}
+                      onChange={e => {
+                        const newStart = e.target.value;
+                        setNewLeave(prev => ({
+                          ...prev, 
+                          startDate: newStart,
+                          endDate: prev.duration !== 'full' ? newStart : prev.endDate
+                        }));
+                      }}
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
                     />
                   </div>
@@ -314,9 +342,10 @@ export const Hazri = () => {
                     <input
                       type="date"
                       required
-                      value={newLeave.endDate}
+                      disabled={newLeave.duration !== 'full'}
+                      value={newLeave.duration !== 'full' ? newLeave.startDate : newLeave.endDate}
                       onChange={e => setNewLeave({...newLeave, endDate: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50 disabled:text-slate-400"
                     />
                   </div>
                 </div>
