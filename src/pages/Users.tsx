@@ -2,24 +2,24 @@ import React, { useState } from 'react';
 import { useAppContext, Role, User } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Plus, MoreVertical, Mail, Phone, KeyRound, Edit2, Briefcase, Calendar } from 'lucide-react';
+import { Plus, Trash2, Mail, Phone, Edit2, Briefcase, Calendar } from 'lucide-react';
 
 export const Users = () => {
-  const { users, teams, addUser, updateUser } = useAppContext();
+  const { users, teams, addUser, updateUser, deleteUser } = useAppContext();
   const { user: currentUser } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [resetMessage, setResetMessage] = useState('');
+  const [message, setMessage] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive'>('Active');
 
-  const handleAdminReset = async (email: string) => {
-    if (window.confirm(`Are you sure you want to send a password reset email to ${email}?`)) {
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
       try {
-        await api.resetPassword(email);
-        setResetMessage(`Password reset email sent to ${email}`);
-        setTimeout(() => setResetMessage(''), 5000);
+        await deleteUser(id);
+        setMessage(`User ${name} deleted successfully`);
+        setTimeout(() => setMessage(''), 5000);
       } catch (err) {
-        alert('Failed to send reset email');
+        alert('Failed to delete user');
       }
     }
   };
@@ -55,9 +55,9 @@ export const Users = () => {
         </div>
       </div>
 
-      {resetMessage && (
+      {message && (
         <div className="bg-emerald-50 text-emerald-600 p-3 rounded-lg text-sm font-medium border border-emerald-100">
-          {resetMessage}
+          {message}
         </div>
       )}
 
@@ -79,11 +79,11 @@ export const Users = () => {
                     <Edit2 size={14} />
                   </button>
                   <button 
-                    onClick={() => handleAdminReset(user.email)}
-                    title="Reset Password"
+                    onClick={() => handleDeleteUser(user.id, user.name)}
+                    title="Delete User"
                     className="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50"
                   >
-                    <KeyRound size={14} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               )}
@@ -154,8 +154,7 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
     creditedLeaves: user?.creditedLeaves || 0,
     isIntern: user?.isIntern || false,
     birthday: user?.birthday || '',
-    anniversary: user?.anniversary || '',
-    password: ''
+    anniversary: user?.anniversary || ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -167,7 +166,6 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
     try {
       if (user) {
         const updates: any = { ...formData };
-        if (!updates.password) delete updates.password;
         // Remove empty optional fields to satisfy Firestore rules
         if (!updates.managerId || updates.role === 'Admin' || updates.role === 'Sarpanch') updates.managerId = null;
         if (!updates.joiningDate) delete updates.joiningDate;
@@ -261,24 +259,6 @@ const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }
                   onChange={e => setFormData({...formData, designation: e.target.value})}
                 />
               </div>
-              {!user && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter initial password"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
-                    value={formData.password}
-                    onChange={e => setFormData({...formData, password: e.target.value})}
-                  />
-                </div>
-              )}
-              {user && (
-                <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg text-xs text-amber-700">
-                  <span className="font-bold">Note:</span> To reset a user's password, use the Key icon on their profile card to send a reset email. For security reasons, admins cannot directly set user passwords.
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>

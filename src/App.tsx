@@ -11,7 +11,6 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Sabha } from './pages/Sabha';
 import { Login } from './pages/Login';
-import { ResetPassword } from './pages/ResetPassword';
 import { Attendance } from './pages/Attendance';
 import { Sarpanch } from './pages/Sarpanch';
 import { Documents } from './pages/Documents';
@@ -37,7 +36,6 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
       <Route 
         path="/" 
         element={

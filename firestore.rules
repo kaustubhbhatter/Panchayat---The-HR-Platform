@@ -12,14 +12,14 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isAuthenticated() && request.auth.token.email == userId;
     }
 
     function isAdmin() {
       return isAuthenticated() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Sarpanch')) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'Admin' || 
+          get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'Sarpanch')) ||
         (request.auth.token.email == "bhatter.kaustubh@gmail.com")
       );
     }
@@ -27,7 +27,7 @@ service cloud.firestore {
     function isManagerOf(userId) {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.managerId == request.auth.uid;
+             get(/databases/$(database)/documents/users/$(userId)).data.managerId == request.auth.token.email;
     }
 
     function hasRequiredFields(fields) {
@@ -148,7 +148,7 @@ service cloud.firestore {
              data.expiryDate is string && data.expiryDate.size() <= 50 &&
              data.createdAt is string && data.createdAt.size() <= 50 &&
              data.createdBy is string && data.createdBy.size() <= 100 &&
-             data.createdBy == request.auth.uid;
+             data.createdBy == request.auth.token.email;
     }
 
     function isValidGuptGupshupPost() {
@@ -185,16 +185,16 @@ service cloud.firestore {
 
     match /leaves/{leaveId} {
       allow read: if request.auth != null;
-      allow create: if isAuthenticated() && isValidLeaveRequest() && request.resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidLeaveRequest() && request.resource.data.userId == request.auth.token.email;
       allow update: if isAuthenticated() && isValidLeaveRequest() && (
         isAdmin() || 
-        resource.data.managerId == request.auth.uid ||
+        resource.data.managerId == request.auth.token.email ||
         isManagerOf(resource.data.userId) ||
-        (request.resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['status', 'userId', 'managerId', 'startDate', 'endDate', 'type', 'createdAt']))
+        (request.resource.data.userId == request.auth.token.email && areImmutableFieldsUnchanged(['status', 'userId', 'managerId', 'startDate', 'endDate', 'type', 'createdAt']))
       );
       allow delete: if isAuthenticated() && (
         isAdmin() || 
-        (resource.data.userId == request.auth.uid && resource.data.status == 'Pending')
+        (resource.data.userId == request.auth.token.email && resource.data.status == 'Pending')
       );
     }
 
@@ -228,7 +228,7 @@ service cloud.firestore {
 
     match /reviewSubmissions/{submissionId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidReviewSubmission() && (isAdmin() || request.resource.data.reviewerId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidReviewSubmission() && (isAdmin() || request.resource.data.reviewerId == request.auth.token.email);
       allow update: if isAdmin() && isValidReviewSubmission(); // Allow admin to update if needed, though app says no
       allow delete: if isAdmin();
     }
@@ -242,7 +242,7 @@ service cloud.firestore {
 
     match /guptGupshupPosts/{postId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidGuptGupshupPost() && request.resource.data.authorId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidGuptGupshupPost() && request.resource.data.authorId == request.auth.token.email;
       allow update: if isAuthenticated() && isValidGuptGupshupPost(); // Allow any authenticated user to upvote/dismiss
       allow delete: if isAdmin();
     }

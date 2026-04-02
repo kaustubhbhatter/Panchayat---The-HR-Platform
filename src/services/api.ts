@@ -14,12 +14,15 @@ import {
   where 
 } from 'firebase/firestore';
 import { 
-  signInWithEmailAndPassword, 
-  sendPasswordResetEmail,
-  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
   getAuth
 } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+const googleProvider = new GoogleAuthProvider();
 
 // Initialize a secondary app to create users without logging out the current admin
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
@@ -84,26 +87,27 @@ export const handleFirestoreError = (error: any, operationType: OperationType, p
 };
 
 export const api = {
-  login: async (email: string, password: string): Promise<User> => {
+  signInWithGoogle: async (): Promise<User> => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = userCredential.user;
       
-      if (!userDoc.exists()) {
-        throw new Error('User profile not found');
+      // Search for user by email in Firestore
+      const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        throw new Error('Your email is not registered in the system. Please contact an admin.');
       }
       
-      return { id: userDoc.id, ...userDoc.data() } as User;
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data() as User;
+      
+      // If the document ID is not the UID, we might want to migrate it or just return it
+      // For now, let's just return the data with the doc ID
+      return { id: userDoc.id, ...userData };
     } catch (error: any) {
-      throw new Error(error.message || 'Invalid email or password');
-    }
-  },
-
-  resetPassword: async (email: string): Promise<void> => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to send reset email');
+      throw new Error(error.message || 'Google Sign-In failed');
     }
   },
 
@@ -125,39 +129,28 @@ export const api = {
     }
   },
 
-  addUser: async (userData: Omit<User, 'id'> & { password?: string }): Promise<User> => {
+  addUser: async (userData: Omit<User, 'id'>): Promise<User> => {
     try {
-      const { password, ...userProfile } = userData;
-      
-      let uid: string;
-      if (password) {
-        // Create user in Firebase Auth using the secondary app
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, userProfile.email, password);
-        uid = userCredential.user.uid;
-        // Sign out the secondary app to clear its session
-        await secondaryAuth.signOut();
-      } else {
-        // If no password is provided, we can't create an auth user easily without a backend.
-        // For now, we'll throw an error because Firebase Auth requires a password.
-        throw new Error("Password is required to create a new user.");
-      }
-      
-      // Create document with the Auth UID
-      const docRef = doc(db, 'users', uid);
-      await setDoc(docRef, userProfile);
-      
-      return { id: uid, ...userProfile } as User;
+      const docRef = doc(db, 'users', userData.email);
+      await setDoc(docRef, userData);
+      return { id: userData.email, ...userData } as User;
     } catch (error) {
       return handleFirestoreError(error, OperationType.CREATE, 'users');
     }
   },
 
-  updateUser: async (id: string, updates: Partial<User> & { password?: string }): Promise<User> => {
+  deleteUser: async (id: string): Promise<void> => {
     try {
-      const { password, ...profileUpdates } = updates;
+      await deleteDoc(doc(db, 'users', id));
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.DELETE, `users/${id}`);
+    }
+  },
+
+  updateUser: async (id: string, updates: Partial<User>): Promise<User> => {
+    try {
       const userRef = doc(db, 'users', id);
-      
-      await updateDoc(userRef, profileUpdates);
+      await updateDoc(userRef, updates);
       
       const updatedDoc = await getDoc(userRef);
       return { id: updatedDoc.id, ...updatedDoc.data() } as User;

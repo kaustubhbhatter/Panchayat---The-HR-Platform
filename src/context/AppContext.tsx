@@ -127,8 +127,9 @@ interface AppContextType {
   reviewSubmissions: ReviewSubmission[];
   adminNotes: AdminNote[];
   guptGupshupPosts: GuptGupshupPost[];
-  addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<void>;
-  updateUser: (id: string, user: Partial<User> & { password?: string }) => Promise<void>;
+  addUser: (user: Omit<User, 'id'>) => Promise<void>;
+  updateUser: (id: string, user: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
   addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
   updateTeam: (id: string, team: Partial<Team>) => Promise<void>;
   addLeave: (leave: Omit<LeaveRequest, 'id'>) => Promise<void>;
@@ -243,11 +244,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     console.log("Data is synced automatically via Firestore listeners.");
   };
 
-  const addUser = async (u: Omit<User, 'id'> & { password?: string }) => {
+  const addUser = async (u: Omit<User, 'id'>) => {
     await api.addUser(u);
   };
-  const updateUser = async (id: string, updates: Partial<User> & { password?: string }) => {
+  const updateUser = async (id: string, updates: Partial<User>) => {
     await api.updateUser(id, updates);
+  };
+  const deleteUser = async (id: string) => {
+    await api.deleteUser(id);
   };
   const addTeam = async (t: Omit<Team, 'id'>) => {
     await api.addTeam(t);
@@ -304,7 +308,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{ 
       users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes, guptGupshupPosts,
-      addUser, updateUser, addTeam, updateTeam, 
+      addUser, updateUser, deleteUser, addTeam, updateTeam, 
       addLeave, updateLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
       addReviewCycle, updateReviewCycle, addReviewSubmission,

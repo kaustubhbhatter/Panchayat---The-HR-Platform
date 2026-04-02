@@ -1,27 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
 import { TreeDeciduous } from 'lucide-react';
 
 export const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setError('');
     setLoading(true);
     try {
-      const user = await api.login(email, password);
-      login(user);
+      await signInWithGoogle();
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err.message || 'Google Sign-In failed');
     } finally {
       setLoading(false);
     }
@@ -37,74 +32,45 @@ export const Login = () => {
           <span className="text-3xl font-black tracking-tight text-stone-900">Panchayat</span>
         </div>
         <h2 className="mt-6 text-center text-3xl font-black text-stone-900 tracking-tight">
-          Sign in to your account
+          Welcome to Sabha
         </h2>
+        <p className="mt-2 text-center text-sm text-stone-600">
+          Sign in with your organization account
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-sm border border-stone-100 sm:rounded-3xl sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-6">
             {error && (
               <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm font-medium">
                 {error}
               </div>
             )}
-            <div>
-              <label className="block text-sm font-bold text-stone-700 mb-1.5">
-                Email address
-              </label>
-              <input
-                type="email"
-                required
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+            
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-stone-200 rounded-xl shadow-sm text-sm font-bold text-stone-700 bg-white hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 transition-all"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              {loading ? 'Connecting...' : 'Sign in with Google'}
+            </button>
 
-            <div>
-              <label className="block text-sm font-bold text-stone-700 mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-stone-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-stone-700 font-medium">
-                  Remember me
-                </label>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-stone-100"></div>
               </div>
-
-              <div className="text-sm">
-                <Link to="/reset-password" className="font-bold text-orange-600 hover:text-orange-500">
-                  Forgot your password?
-                </Link>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-stone-400">Restricted Access</span>
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm shadow-orange-600/20 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 transition-colors"
-              >
-                {loading ? 'Signing in...' : 'Sign in'}
-              </button>
-            </div>
-          </form>
+            <p className="text-center text-xs text-stone-400 leading-relaxed">
+              Only registered emails can access the system. <br />
+              Contact your Sarpanch for registration.
+            </p>
+          </div>
         </div>
       </div>
     </div>

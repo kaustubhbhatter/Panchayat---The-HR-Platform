@@ -2,11 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from './AppContext';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { api } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
-  login: (user: User) => void;
+  signInWithGoogle: () => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -19,15 +20,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
+      if (firebaseUser && firebaseUser.email) {
         try {
-          // Fetch user profile from Firestore
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          // Fetch user profile from Firestore using email as the ID
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.email));
+          
           if (userDoc.exists()) {
             setUser({ id: userDoc.id, ...userDoc.data() } as User);
           } else {
-            console.error('User profile not found in Firestore');
-            setUser(null);
+            // Fallback: search by email field (in case the ID is different)
+            const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+              const foundDoc = querySnapshot.docs[0];
+              setUser({ id: foundDoc.id, ...foundDoc.data() } as User);
+            } else {
+              console.error('User profile not found in Firestore');
+              setUser(null);
+              // Optionally sign out if they shouldn't be here
+              // await signOut(auth);
+            }
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
@@ -42,7 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const login = (userData: User) => {
+  const signInWithGoogle = async () => {
+    const userData = await api.signInWithGoogle();
     setUser(userData);
   };
 
@@ -56,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, signInWithGoogle, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
