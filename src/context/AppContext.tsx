@@ -66,6 +66,7 @@ export interface Holiday {
   id: string;
   date: string;
   name: string;
+  type: 'Public' | 'Optional';
 }
 
 export interface AppSettings {

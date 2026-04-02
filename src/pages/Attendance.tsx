@@ -15,6 +15,7 @@ export const Attendance = () => {
   
   // Apply leave state
   const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
+  const [showOptionalConfirm, setShowOptionalConfirm] = useState<{ show: boolean; holiday?: any }>({ show: false });
 
   const isManager = users.some(u => u.managerId === user?.id) || 
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
@@ -43,20 +44,53 @@ export const Attendance = () => {
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLeave.startDate || !newLeave.endDate) return;
+
+    // Check for optional holiday
+    const start = new Date(newLeave.startDate);
+    const end = new Date(newLeave.endDate);
+    let current = new Date(start);
+    let optionalHolidayFound = null;
+
+    while (current <= end) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      const holiday = holidays.find(h => h.date === dateStr && h.type === 'Optional');
+      if (holiday) {
+        optionalHolidayFound = holiday;
+        break;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (optionalHolidayFound) {
+      // Check if already taken an optional holiday this year
+      const alreadyTaken = myLeaves.some(l => l.type.startsWith('Optional Holiday') && l.status !== 'Rejected');
+      if (alreadyTaken) {
+        alert("You have already used your optional holiday for this year.");
+        return;
+      }
+      setShowOptionalConfirm({ show: true, holiday: optionalHolidayFound });
+      return;
+    }
+
+    await submitLeaveRequest(newLeave.type, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay);
+  };
+
+  const submitLeaveRequest = async (type: string, reason: string, startDate: string, endDate: string, isHalfDay: boolean) => {
     await addLeave({
       userId: user!.id,
       userName: user!.name,
       managerId: user!.managerId || null,
-      startDate: newLeave.startDate,
-      endDate: newLeave.endDate,
-      type: newLeave.type,
-      reason: newLeave.reason,
+      startDate,
+      endDate,
+      type,
+      reason,
       status: 'Pending',
       createdAt: new Date().toISOString(),
-      isHalfDay: newLeave.isHalfDay
+      isHalfDay
     });
     setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
     setActiveTab('my-leaves');
+    setShowOptionalConfirm({ show: false });
   };
 
   const handleApproveReject = async (id: string, status: 'Approved' | 'Rejected') => {
@@ -76,7 +110,7 @@ export const Attendance = () => {
   const blanks = Array.from({ length: firstDay }, (_, i) => i);
 
   const isHoliday = (dateStr: string) => {
-    return holidays.some(h => h.date === dateStr);
+    return holidays.find(h => h.date === dateStr);
   };
   
   const isWeekend = (date: Date) => {
@@ -92,7 +126,8 @@ export const Attendance = () => {
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
 
   // Calculate working days between two dates
-  const calculateWorkingDays = (startDate: string, endDate: string, isHalfDay?: boolean) => {
+  const calculateWorkingDays = (startDate: string, endDate: string, isHalfDay?: boolean, type?: string) => {
+    if (type?.startsWith('Optional Holiday')) return 0;
     if (isHalfDay) return 0.5;
 
     const start = new Date(startDate);
@@ -102,7 +137,8 @@ export const Attendance = () => {
     let current = new Date(start);
     while (current <= end) {
       const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-      if (!isWeekend(current) && !isHoliday(dateStr)) {
+      const holiday = isHoliday(dateStr);
+      if (!isWeekend(current) && (!holiday || holiday.type === 'Optional')) {
         if (current.getDay() === 6) {
           workingDays += 0.5; // Saturday is half day
         } else {
@@ -116,8 +152,8 @@ export const Attendance = () => {
 
   const approvedLeavesDays = useMemo(() => {
     return myLeaves
-      .filter(l => l.status === 'Approved' && l.type !== 'Work From Home')
-      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate, l.isHalfDay), 0);
+      .filter(l => l.status === 'Approved' && l.type !== 'Work From Home' && !l.type.startsWith('Optional Holiday'))
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate, l.isHalfDay, l.type), 0);
   }, [myLeaves, holidays]);
 
   const approvedWfhDays = useMemo(() => {
@@ -237,11 +273,11 @@ export const Attendance = () => {
                   return (
                     <div 
                       key={d} 
-                      title={holiday ? getHolidayName(d) : myLeave ? 'My Leave' : ''}
+                      title={holiday ? holiday.name : myLeave ? 'My Leave' : ''}
                       className={`h-8 flex items-center justify-center rounded-lg text-sm font-medium cursor-default
-                        ${holiday ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : 
+                        ${holiday ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 
                           myLeave ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200' :
-                          weekend ? 'text-slate-400 bg-slate-50' : 'text-slate-700 hover:bg-slate-100'}`}
+                          weekend ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : 'text-slate-700 hover:bg-slate-100'}`}
                     >
                       {d}
                     </div>
@@ -249,9 +285,8 @@ export const Attendance = () => {
                 })}
               </div>
               <div className="mt-4 flex gap-4 text-xs text-slate-500 justify-center">
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-100 rounded border border-emerald-200"></div> Holiday</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-amber-100 rounded border border-amber-200"></div> Holiday</div>
                 <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-100 rounded border border-blue-200"></div> My Leave</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-50 rounded border border-slate-200"></div> Weekend</div>
               </div>
             </div>
           </div>
@@ -281,7 +316,7 @@ export const Attendance = () => {
                           <p className="font-bold text-slate-800">{leave.type}</p>
                           <p className="text-sm text-slate-500">
                             {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                            <span className="ml-2 text-xs text-slate-400">({calculateWorkingDays(leave.startDate, leave.endDate, leave.isHalfDay)} days)</span>
+                            <span className="ml-2 text-xs text-slate-400">({calculateWorkingDays(leave.startDate, leave.endDate, leave.isHalfDay, leave.type)} days)</span>
                           </p>
                         </div>
                       </div>
@@ -303,6 +338,37 @@ export const Attendance = () => {
           {activeTab === 'apply' && (
             <div>
               <h3 className="text-lg font-bold text-slate-800 mb-6">Apply for Leave</h3>
+              
+              {showOptionalConfirm.show && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                  <h4 className="font-bold text-amber-800 mb-2">Optional Holiday Detected</h4>
+                  <p className="text-sm text-amber-700 mb-4">
+                    The date you selected coincides with the optional holiday: <span className="font-bold">{showOptionalConfirm.holiday?.name}</span>. 
+                    Would you like to mark this as your optional holiday? This will not be deducted from your leave balance.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => submitLeaveRequest(`Optional Holiday - ${showOptionalConfirm.holiday?.name}`, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}
+                      className="px-4 py-2 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors"
+                    >
+                      Yes, use Optional Holiday
+                    </button>
+                    <button
+                      onClick={() => submitLeaveRequest(newLeave.type, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}
+                      className="px-4 py-2 bg-white border border-amber-200 text-amber-700 text-sm font-bold rounded-xl hover:bg-amber-50 transition-colors"
+                    >
+                      No, use regular {newLeave.type}
+                    </button>
+                    <button
+                      onClick={() => setShowOptionalConfirm({ show: false })}
+                      className="px-4 py-2 text-stone-400 text-sm font-medium hover:text-stone-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleApply} className="space-y-4 max-w-md">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Leave Type</label>
@@ -378,7 +444,7 @@ export const Attendance = () => {
 
                 {newLeave.startDate && newLeave.endDate && (
                   <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    This request is for <span className="font-bold">{calculateWorkingDays(newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}</span> working days.
+                    This request is for <span className="font-bold">{calculateWorkingDays(newLeave.startDate, newLeave.endDate, newLeave.isHalfDay, newLeave.type)}</span> working days.
                   </div>
                 )}
                 <div>
@@ -419,7 +485,7 @@ export const Attendance = () => {
                             <img src={requestor?.avatar} alt="" className="w-10 h-10 rounded-full" />
                             <div>
                               <p className="font-bold text-slate-800">{requestor?.name}</p>
-                              <p className="text-sm text-slate-500">{leave.type} • {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()} ({calculateWorkingDays(leave.startDate, leave.endDate, leave.isHalfDay)} days)</p>
+                              <p className="text-sm text-slate-500">{leave.type} • {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()} ({calculateWorkingDays(leave.startDate, leave.endDate, leave.isHalfDay, leave.type)} days)</p>
                             </div>
                           </div>
                           <div className="flex gap-2">

@@ -10,7 +10,7 @@ export const Sarpanch = () => {
   const [wfhQuota, setWfhQuota] = useState((settings.defaultWfhQuota || 10).toString());
   const [guptEnabled, setGuptEnabled] = useState(settings.guptGupshupEnabled || false);
   const [showAnonNames, setShowAnonNames] = useState(settings.showAnonymousNamesToAdmin || false);
-  const [newHoliday, setNewHoliday] = useState({ date: '', name: '' });
+  const [newHoliday, setNewHoliday] = useState<{ date: string; name: string; type: 'Public' | 'Optional' }>({ date: '', name: '', type: 'Public' });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [message, setMessage] = useState('');
@@ -59,7 +59,7 @@ export const Sarpanch = () => {
     e.preventDefault();
     if (!newHoliday.date || !newHoliday.name) return;
     await addHoliday(newHoliday);
-    setNewHoliday({ date: '', name: '' });
+    setNewHoliday({ date: '', name: '', type: 'Public' });
   };
 
   const handleDuplicateHolidays = async () => {
@@ -83,7 +83,7 @@ export const Sarpanch = () => {
         
         // Check if holiday already exists on this date
         if (!holidays.some(existing => existing.date === newDateStr)) {
-          await addHoliday({ name: h.name, date: newDateStr });
+          await addHoliday({ name: h.name, date: newDateStr, type: h.type || 'Public' });
         }
       }
       showMessage('Holidays duplicated successfully!');
@@ -429,12 +429,31 @@ export const Sarpanch = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+              <select
+                value={newHoliday.type}
+                onChange={e => setNewHoliday({...newHoliday, type: e.target.value as 'Public' | 'Optional'})}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="Public">Public</option>
+                <option value="Optional">Optional</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
               <input
                 type="date"
                 required
                 value={newHoliday.date}
                 onChange={e => setNewHoliday({...newHoliday, date: e.target.value})}
+                onFocus={(e) => {
+                  if (!newHoliday.date) {
+                    const today = new Date();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    setNewHoliday({...newHoliday, date: `${selectedYear}-${month}-${day}`});
+                  }
+                }}
                 className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
               />
             </div>
@@ -456,7 +475,14 @@ export const Sarpanch = () => {
                   <CalendarIcon size={20} />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-800">{holiday.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-800">{holiday.name}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      holiday.type === 'Optional' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {holiday.type || 'Public'}
+                    </span>
+                  </div>
                   <p className="text-sm text-slate-500">
                     {new Date(holiday.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
