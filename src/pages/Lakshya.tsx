@@ -112,6 +112,9 @@ const Lakshya: React.FC = () => {
   const [expandedGoals, setExpandedGoals] = useState<string[]>([]);
   const [expandedKRs, setExpandedKRs] = useState<string[]>([]);
 
+  const [activePicker, setActivePicker] = useState<{ type: 'status' | 'date' | 'owner', id: string } | null>(null);
+  const [userSearch, setUserSearch] = useState('');
+
   const commentRef = React.useRef<HTMLTextAreaElement>(null);
 
   const toggleGoal = (id: string) => {
@@ -438,36 +441,143 @@ const Lakshya: React.FC = () => {
                                                   <span className={`text-stone-800 font-bold ${isCompleted ? 'line-through' : ''}`}>{initiative.title}</span>
                                                 </div>
                                               </td>
-                                              <td className="py-4">
-                                                <input 
-                                                  type="date" 
-                                                  value={initiative.dueDate || ''} 
-                                                  onChange={(e) => updateInitiative(initiative.id, { dueDate: e.target.value })}
-                                                  className="bg-stone-50 border border-stone-100 rounded-lg px-2 py-1 focus:ring-1 focus:ring-orange-500 focus:outline-none text-stone-500 font-medium text-[10px] cursor-pointer hover:bg-white transition-all"
-                                                />
-                                              </td>
-                                              <td className="py-4">
-                                                <select 
-                                                  value={initiative.status} 
-                                                  onChange={(e) => updateInitiative(initiative.id, { status: e.target.value as any })}
-                                                  className="bg-stone-50 border border-stone-100 rounded-lg px-2 py-1 focus:ring-1 focus:ring-orange-500 focus:outline-none text-stone-600 font-bold text-[10px] cursor-pointer hover:bg-white transition-all"
+                                              <td className="py-4 relative">
+                                                <div 
+                                                  onClick={() => setActivePicker({ type: 'date', id: initiative.id })}
+                                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-stone-100 cursor-pointer transition-all w-fit group/date"
                                                 >
-                                                  <option value="Not Picked">Not Picked</option>
-                                                  <option value="In Progress">In Progress</option>
-                                                  <option value="Completed">Completed</option>
-                                                  <option value="Dropped">Dropped</option>
-                                                </select>
+                                                  <Calendar className="w-3.5 h-3.5 text-stone-400 group-hover/date:text-orange-500" />
+                                                  <span className="text-stone-600 font-bold text-xs">
+                                                    {initiative.dueDate ? new Date(initiative.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Set date'}
+                                                  </span>
+                                                </div>
+                                                <AnimatePresence>
+                                                  {activePicker?.type === 'date' && activePicker.id === initiative.id && (
+                                                    <>
+                                                      <div className="fixed inset-0 z-20" onClick={() => setActivePicker(null)} />
+                                                      <motion.div 
+                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        className="absolute top-full left-0 mt-2 z-30 bg-white rounded-2xl shadow-2xl border border-stone-100 p-4 min-w-[200px]"
+                                                      >
+                                                        <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Due Date</label>
+                                                        <input 
+                                                          type="date" 
+                                                          autoFocus
+                                                          value={initiative.dueDate || ''} 
+                                                          onChange={(e) => {
+                                                            updateInitiative(initiative.id, { dueDate: e.target.value });
+                                                            setActivePicker(null);
+                                                          }}
+                                                          className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm font-bold text-stone-700 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                                                        />
+                                                      </motion.div>
+                                                    </>
+                                                  )}
+                                                </AnimatePresence>
                                               </td>
-                                              <td className="py-4">
-                                                <select 
-                                                  value={initiative.ownerId} 
-                                                  onChange={(e) => updateInitiative(initiative.id, { ownerId: e.target.value })}
-                                                  className="bg-stone-50 border border-stone-100 rounded-lg px-2 py-1 focus:ring-1 focus:ring-orange-500 focus:outline-none text-stone-600 font-bold text-[10px] cursor-pointer hover:bg-white transition-all w-24"
+                                              <td className="py-4 relative">
+                                                <div 
+                                                  onClick={() => setActivePicker({ type: 'status', id: initiative.id })}
+                                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-stone-100 cursor-pointer transition-all w-fit"
                                                 >
-                                                  {users.map(u => (
-                                                    <option key={u.id} value={u.email}>{u.name}</option>
-                                                  ))}
-                                                </select>
+                                                  {getInitiativeStatusIcon(initiative.status)}
+                                                  <span className="text-stone-600 font-bold text-xs">{initiative.status}</span>
+                                                </div>
+                                                <AnimatePresence>
+                                                  {activePicker?.type === 'status' && activePicker.id === initiative.id && (
+                                                    <>
+                                                      <div className="fixed inset-0 z-20" onClick={() => setActivePicker(null)} />
+                                                      <motion.div 
+                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        className="absolute top-full left-0 mt-2 z-30 bg-white rounded-2xl shadow-2xl border border-stone-100 p-2 min-w-[160px]"
+                                                      >
+                                                        <div className="space-y-1">
+                                                          {['Not Picked', 'In Progress', 'Completed', 'Dropped'].map(s => (
+                                                            <button
+                                                              key={s}
+                                                              onClick={() => {
+                                                                updateInitiative(initiative.id, { status: s as any });
+                                                                setActivePicker(null);
+                                                              }}
+                                                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2
+                                                                ${initiative.status === s ? 'bg-orange-50 text-orange-600' : 'text-stone-600 hover:bg-stone-50'}`}
+                                                            >
+                                                              {getInitiativeStatusIcon(s)}
+                                                              {s}
+                                                            </button>
+                                                          ))}
+                                                        </div>
+                                                      </motion.div>
+                                                    </>
+                                                  )}
+                                                </AnimatePresence>
+                                              </td>
+                                              <td className="py-4 relative">
+                                                <div 
+                                                  onClick={() => {
+                                                    setActivePicker({ type: 'owner', id: initiative.id });
+                                                    setUserSearch('');
+                                                  }}
+                                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-stone-100 cursor-pointer transition-all w-fit"
+                                                >
+                                                  <div className="w-7 h-7 bg-orange-50 rounded-xl flex items-center justify-center text-orange-700 font-black text-[10px] border border-orange-100">
+                                                    {iOwner?.name.split(' ').map(n => n[0]).join('') || '??'}
+                                                  </div>
+                                                  <span className="text-stone-600 font-bold text-xs">{iOwner?.name || 'Unassigned'}</span>
+                                                </div>
+                                                <AnimatePresence>
+                                                  {activePicker?.type === 'owner' && activePicker.id === initiative.id && (
+                                                    <>
+                                                      <div className="fixed inset-0 z-20" onClick={() => setActivePicker(null)} />
+                                                      <motion.div 
+                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        className="absolute top-full left-0 mt-2 z-30 bg-white rounded-2xl shadow-2xl border border-stone-100 p-3 min-w-[240px]"
+                                                      >
+                                                        <div className="relative mb-3">
+                                                          <BarChart3 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+                                                          <input 
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="Search employee..."
+                                                            value={userSearch}
+                                                            onChange={(e) => setUserSearch(e.target.value)}
+                                                            className="w-full bg-stone-50 border border-stone-100 rounded-xl pl-9 pr-4 py-2 text-xs font-bold text-stone-700 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                                                          />
+                                                        </div>
+                                                        <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                                          {users
+                                                            .filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()))
+                                                            .map(u => (
+                                                              <button
+                                                                key={u.id}
+                                                                onClick={() => {
+                                                                  updateInitiative(initiative.id, { ownerId: u.email });
+                                                                  setActivePicker(null);
+                                                                }}
+                                                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-3
+                                                                  ${initiative.ownerId === u.email ? 'bg-orange-50 text-orange-600' : 'text-stone-600 hover:bg-stone-50'}`}
+                                                              >
+                                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[8px] font-black
+                                                                  ${initiative.ownerId === u.email ? 'bg-orange-100 text-orange-700' : 'bg-stone-100 text-stone-500'}`}>
+                                                                  {u.name.split(' ').map(n => n[0]).join('')}
+                                                                </div>
+                                                                <div className="truncate">
+                                                                  <p className="truncate">{u.name}</p>
+                                                                  <p className="text-[8px] text-stone-400 truncate">{u.email}</p>
+                                                                </div>
+                                                              </button>
+                                                            ))}
+                                                        </div>
+                                                      </motion.div>
+                                                    </>
+                                                  )}
+                                                </AnimatePresence>
                                               </td>
                                               <td className="py-4 text-right">
                                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
