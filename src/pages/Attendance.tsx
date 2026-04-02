@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
 export const Attendance = () => {
-  const { leaves, addLeave, updateLeave, holidays, settings, users, teams } = useAppContext();
+  const { leaves, addLeave, updateLeave, deleteLeave, holidays, settings, users, teams } = useAppContext();
   const { user } = useAuth();
   
   const [activeTab, setActiveTab] = useState<'my-leaves' | 'apply' | 'requests'>('my-leaves');
@@ -63,9 +63,9 @@ export const Attendance = () => {
 
     if (optionalHolidayFound) {
       // Check if already taken an optional holiday this year
-      const alreadyTaken = myLeaves.some(l => l.type.startsWith('Optional Holiday') && l.status !== 'Rejected');
-      if (alreadyTaken) {
-        alert("You have already used your optional holiday for this year.");
+      const optionalLeaves = myLeaves.filter(l => l.type.startsWith('Optional Holiday') && l.status !== 'Rejected');
+      if (optionalLeaves.length >= 2) {
+        alert("You have already used your 2 optional holidays for this year.");
         return;
       }
       setShowOptionalConfirm({ show: true, holiday: optionalHolidayFound });
@@ -328,6 +328,19 @@ export const Attendance = () => {
                         </span>
                         <p className="text-xs text-slate-400 mt-1 max-w-[150px] truncate" title={leave.reason}>{leave.reason}</p>
                       </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this leave record?')) {
+                              deleteLeave(leave.id);
+                            }
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Delete Record"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -489,6 +502,17 @@ export const Attendance = () => {
                             </div>
                           </div>
                           <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this leave request?')) {
+                                  deleteLeave(leave.id);
+                                }
+                              }}
+                              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Delete Request"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button
                               onClick={() => handleApproveReject(leave.id, 'Rejected')}
                               className="px-3 py-1.5 text-sm font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"

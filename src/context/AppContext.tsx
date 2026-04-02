@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
 
-export type Role = 'Admin' | 'Team Leader' | 'IC' | 'Sarpanch' | 'Karyakarta';
+export type Role = 'Admin' | 'Team Leader' | 'IC' | 'Sarpanch' | 'Karyakarta' | 'HR' | 'Team Lead';
 
 export interface User {
   id: string;
@@ -20,6 +20,7 @@ export interface User {
   conversionDate?: string;
   designation?: string;
   wfhEnabled?: boolean;
+  wfhQuota?: number;
   creditedLeaves?: number;
   isIntern?: boolean;
   birthday?: string;
@@ -53,6 +54,8 @@ export interface Team {
 export interface LeaveRequest {
   id: string;
   userId: string;
+  userName?: string;
+  managerId?: string | null;
   startDate: string;
   endDate: string;
   type: string;
@@ -60,6 +63,7 @@ export interface LeaveRequest {
   reason: string;
   duration?: 'full' | 'first_half' | 'second_half';
   isHalfDay?: boolean;
+  createdAt?: string;
 }
 
 export interface Holiday {
@@ -188,6 +192,7 @@ interface AppContextType {
   keyResults: KeyResult[];
   krCheckIns: KRCheckIn[];
   initiatives: Initiative[];
+  notifications: Notification[];
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
   updateUser: (id: string, user: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -195,6 +200,7 @@ interface AppContextType {
   updateTeam: (id: string, team: Partial<Team>) => Promise<void>;
   addLeave: (leave: Omit<LeaveRequest, 'id'>) => Promise<void>;
   updateLeave: (id: string, leave: Partial<LeaveRequest>) => Promise<void>;
+  deleteLeave: (id: string) => Promise<void>;
   addHoliday: (holiday: Omit<Holiday, 'id'>) => Promise<void>;
   deleteHoliday: (id: string) => Promise<void>;
   updateSettings: (settings: AppSettings) => Promise<void>;
@@ -392,6 +398,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
   };
+  const deleteLeave = async (id: string) => {
+    await api.deleteLeave(id);
+  };
   const addHoliday = async (h: Omit<Holiday, 'id'>) => {
     await api.addHoliday(h);
   };
@@ -505,7 +514,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       users, teams, leaves, holidays, settings, documents, reviewCycles, reviewSubmissions, adminNotes, guptGupshupPosts,
       goals, keyResults, krCheckIns, initiatives, notifications,
       addUser, updateUser, deleteUser, addTeam, updateTeam, 
-      addLeave, updateLeave, addHoliday, deleteHoliday, 
+      addLeave, updateLeave, deleteLeave, addHoliday, deleteHoliday, 
       updateSettings, addDocument, deleteDocument,
       addReviewCycle, updateReviewCycle, addReviewSubmission,
       addAdminNote, deleteAdminNote, addGuptGupshupPost, updateGuptGupshupPost,

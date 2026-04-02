@@ -210,6 +210,14 @@ export const api = {
     }
   },
 
+  deleteLeave: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'leaves', id));
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.DELETE, `leaves/${id}`);
+    }
+  },
+
   getHolidays: async (): Promise<Holiday[]> => {
     try {
       const snapshot = await getDocs(collection(db, 'holidays'));

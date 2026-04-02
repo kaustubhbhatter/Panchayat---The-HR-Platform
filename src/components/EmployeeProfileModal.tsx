@@ -215,7 +215,7 @@ const TabButton = ({ active, onClick, children }: { active: boolean, onClick: ()
 const DetailCard = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
   <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex items-start gap-4">
     <div className="p-2 bg-orange-50 text-orange-600 rounded-xl">
-      {React.cloneElement(icon as React.ReactElement, { size: 20 })}
+      {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<any>, { size: 20 }) : icon}
     </div>
     <div>
       <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">{label}</p>
