@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import ReactMarkdown from 'react-markdown';
 
 const Lakshya: React.FC = () => {
   const { 
@@ -111,7 +112,7 @@ const Lakshya: React.FC = () => {
   const [expandedGoals, setExpandedGoals] = useState<string[]>([]);
   const [expandedKRs, setExpandedKRs] = useState<string[]>([]);
 
-  const [checkInTab, setCheckInTab] = useState<'checkin' | 'history'>('checkin');
+  const commentRef = React.useRef<HTMLTextAreaElement>(null);
 
   const toggleGoal = (id: string) => {
     setExpandedGoals(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -437,17 +438,36 @@ const Lakshya: React.FC = () => {
                                                   <span className={`text-stone-800 font-bold ${isCompleted ? 'line-through' : ''}`}>{initiative.title}</span>
                                                 </div>
                                               </td>
-                                              <td className="py-4 text-stone-500 font-medium">{initiative.dueDate || '-'}</td>
                                               <td className="py-4">
-                                                <div className="flex items-center gap-2">
-                                                  {getInitiativeStatusIcon(initiative.status)}
-                                                  <span className="text-stone-600 font-medium">{initiative.status}</span>
-                                                </div>
+                                                <input 
+                                                  type="date" 
+                                                  value={initiative.dueDate || ''} 
+                                                  onChange={(e) => updateInitiative(initiative.id, { dueDate: e.target.value })}
+                                                  className="bg-stone-50 border border-stone-100 rounded-lg px-2 py-1 focus:ring-1 focus:ring-orange-500 focus:outline-none text-stone-500 font-medium text-[10px] cursor-pointer hover:bg-white transition-all"
+                                                />
                                               </td>
                                               <td className="py-4">
-                                                <div className="w-7 h-7 bg-orange-50 rounded-xl flex items-center justify-center text-orange-700 font-black text-[10px]">
-                                                  {iOwner?.name.split(' ').map(n => n[0]).join('') || '??'}
-                                                </div>
+                                                <select 
+                                                  value={initiative.status} 
+                                                  onChange={(e) => updateInitiative(initiative.id, { status: e.target.value as any })}
+                                                  className="bg-stone-50 border border-stone-100 rounded-lg px-2 py-1 focus:ring-1 focus:ring-orange-500 focus:outline-none text-stone-600 font-bold text-[10px] cursor-pointer hover:bg-white transition-all"
+                                                >
+                                                  <option value="Not Picked">Not Picked</option>
+                                                  <option value="In Progress">In Progress</option>
+                                                  <option value="Completed">Completed</option>
+                                                  <option value="Dropped">Dropped</option>
+                                                </select>
+                                              </td>
+                                              <td className="py-4">
+                                                <select 
+                                                  value={initiative.ownerId} 
+                                                  onChange={(e) => updateInitiative(initiative.id, { ownerId: e.target.value })}
+                                                  className="bg-stone-50 border border-stone-100 rounded-lg px-2 py-1 focus:ring-1 focus:ring-orange-500 focus:outline-none text-stone-600 font-bold text-[10px] cursor-pointer hover:bg-white transition-all w-24"
+                                                >
+                                                  {users.map(u => (
+                                                    <option key={u.id} value={u.email}>{u.name}</option>
+                                                  ))}
+                                                </select>
                                               </td>
                                               <td className="py-4 text-right">
                                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -488,10 +508,6 @@ const Lakshya: React.FC = () => {
                                     >
                                       <Plus className="w-4 h-4" />
                                       Add Initiative
-                                    </button>
-                                    <button className="text-stone-400 text-xs font-bold flex items-center gap-1.5 hover:text-stone-600 transition-colors uppercase tracking-wider">
-                                      <BarChart3 className="w-4 h-4" />
-                                      AI Initiatives
                                     </button>
                                   </div>
                                 </div>
@@ -719,27 +735,14 @@ const Lakshya: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-stone-100"
           >
-            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
-              <div className="flex gap-6">
-                <button 
-                  onClick={() => setCheckInTab('checkin')}
-                  className={`${checkInTab === 'checkin' ? 'text-orange-500 border-orange-500' : 'text-stone-400 border-transparent'} font-black border-b-2 pb-1 uppercase text-xs tracking-widest transition-all`}
-                >
-                  Check-In
-                </button>
-                <button 
-                  onClick={() => setCheckInTab('history')}
-                  className={`${checkInTab === 'history' ? 'text-orange-500 border-orange-500' : 'text-stone-400 border-transparent'} font-black border-b-2 pb-1 uppercase text-xs tracking-widest transition-all`}
-                >
-                  History
-                </button>
-              </div>
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <h2 className="text-xl font-black text-stone-800">KR Check-in & History</h2>
               <button onClick={() => setIsCheckInModalOpen(false)} className="text-stone-400 hover:text-stone-600">
                 <ChevronDown className="w-6 h-6 rotate-90" />
               </button>
             </div>
 
-            {checkInTab === 'checkin' ? (
+            <div className="max-h-[80vh] overflow-y-auto">
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
@@ -752,8 +755,9 @@ const Lakshya: React.FC = () => {
                   createdAt: new Date().toISOString(),
                   createdBy: currentUser?.email || 'system'
                 });
-                setIsCheckInModalOpen(false);
-              }} className="p-8 space-y-6 bg-stone-50/30">
+                // Reset form
+                (e.target as HTMLFormElement).reset();
+              }} className="p-8 space-y-6 bg-stone-50/30 border-b border-stone-100">
                 <div className="grid grid-cols-2 gap-8">
                   <div>
                     <label className="block text-sm font-bold text-stone-700 mb-2">Progress ({keyResults.find(k => k.id === selectedKRId)?.unit || '$'}):</label>
@@ -786,24 +790,38 @@ const Lakshya: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 mb-2 flex items-center gap-2">
+                  <label className="block text-sm font-bold text-stone-700 mb-2">
                     Check-in note
-                    <span className="text-[10px] text-stone-400 flex items-center gap-1 font-bold uppercase tracking-wider">
-                      <BarChart3 className="w-3 h-3" /> See Examples
-                    </span>
                   </label>
                   <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
                     <div className="flex items-center gap-2 p-2 border-b border-stone-100 bg-stone-50/50">
                       <div className="flex items-center gap-1 border-r border-stone-200 pr-2">
-                        <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg text-[10px] font-black uppercase tracking-wider text-stone-500">Format</button>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-stone-500 px-1.5">Markdown Supported</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg font-bold text-stone-600">B</button>
-                        <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg italic text-stone-600">I</button>
-                        <button type="button" className="p-1.5 hover:bg-stone-200 rounded-lg underline text-stone-600">U</button>
+                        <button type="button" onClick={() => {
+                          if (!commentRef.current) return;
+                          const start = commentRef.current.selectionStart;
+                          const end = commentRef.current.selectionEnd;
+                          const text = commentRef.current.value;
+                          commentRef.current.value = text.substring(0, start) + '**' + text.substring(start, end) + '**' + text.substring(end);
+                        }} className="p-1.5 hover:bg-stone-200 rounded-lg font-bold text-stone-600">B</button>
+                        <button type="button" onClick={() => {
+                          if (!commentRef.current) return;
+                          const start = commentRef.current.selectionStart;
+                          const end = commentRef.current.selectionEnd;
+                          const text = commentRef.current.value;
+                          commentRef.current.value = text.substring(0, start) + '_' + text.substring(start, end) + '_' + text.substring(end);
+                        }} className="p-1.5 hover:bg-stone-200 rounded-lg italic text-stone-600">I</button>
                       </div>
                     </div>
-                    <textarea name="comment" rows={6} className="w-full p-4 focus:outline-none text-sm font-medium text-stone-700" placeholder="+ Summary of check-in" />
+                    <textarea 
+                      ref={commentRef}
+                      name="comment" 
+                      rows={4} 
+                      className="w-full p-4 focus:outline-none text-sm font-medium text-stone-700" 
+                      placeholder="+ Summary of check-in" 
+                    />
                   </div>
                 </div>
 
@@ -814,8 +832,9 @@ const Lakshya: React.FC = () => {
                   </div>
                 </div>
               </form>
-            ) : (
-              <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6 bg-stone-50/30">
+
+              <div className="p-8 space-y-6 bg-stone-50/30">
+                <h3 className="text-xs font-black text-stone-400 uppercase tracking-widest">Check-in History</h3>
                 {useAppContext().krCheckIns.filter(c => c.krId === selectedKRId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(checkIn => (
                   <div key={checkIn.id} className="bg-white p-4 rounded-2xl border border-stone-100 shadow-sm">
                     <div className="flex justify-between items-start mb-3">
@@ -836,9 +855,9 @@ const Lakshya: React.FC = () => {
                       <span className="text-xs font-black text-stone-800">Value: {keyResults.find(k => k.id === selectedKRId)?.unit}{checkIn.value.toLocaleString()}</span>
                     </div>
                     {checkIn.comment && (
-                      <p className="text-sm text-stone-600 font-medium bg-stone-50 p-3 rounded-xl border border-stone-100">
-                        {checkIn.comment}
-                      </p>
+                      <div className="text-sm text-stone-600 font-medium bg-stone-50 p-3 rounded-xl border border-stone-100 prose prose-sm max-w-none">
+                        <ReactMarkdown>{checkIn.comment}</ReactMarkdown>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -849,7 +868,7 @@ const Lakshya: React.FC = () => {
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </motion.div>
         </div>
       )}
