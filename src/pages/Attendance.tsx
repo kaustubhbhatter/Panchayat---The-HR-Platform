@@ -14,7 +14,7 @@ export const Attendance = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   // Apply leave state
-  const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '' });
+  const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
 
   const isManager = users.some(u => u.managerId === user?.id) || 
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
@@ -24,6 +24,9 @@ export const Attendance = () => {
   const pendingRequests = leaves.filter(l => {
     if (l.status !== 'Pending') return false;
     if (new Date(l.startDate).getFullYear() !== selectedYear) return false;
+    
+    // Admins see all requests
+    if (user?.role === 'Admin' || user?.role === 'Sarpanch') return true;
     
     // Check if current user is the manager of the requester
     if (l.managerId === user?.id) return true;
@@ -49,9 +52,10 @@ export const Attendance = () => {
       type: newLeave.type,
       reason: newLeave.reason,
       status: 'Pending',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isHalfDay: newLeave.isHalfDay
     });
-    setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '' });
+    setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
     setActiveTab('my-leaves');
   };
 
@@ -76,7 +80,7 @@ export const Attendance = () => {
   };
   
   const isWeekend = (date: Date) => {
-    return date.getDay() === 0 || date.getDay() === 6;
+    return date.getDay() === 0; // Only Sunday is a full weekend
   };
 
   const getHolidayName = (day: number) => {
@@ -88,7 +92,9 @@ export const Attendance = () => {
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
 
   // Calculate working days between two dates
-  const calculateWorkingDays = (startDate: string, endDate: string) => {
+  const calculateWorkingDays = (startDate: string, endDate: string, isHalfDay?: boolean) => {
+    if (isHalfDay) return 0.5;
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     let workingDays = 0;
@@ -97,7 +103,11 @@ export const Attendance = () => {
     while (current <= end) {
       const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
       if (!isWeekend(current) && !isHoliday(dateStr)) {
-        workingDays++;
+        if (current.getDay() === 6) {
+          workingDays += 0.5; // Saturday is half day
+        } else {
+          workingDays += 1;
+        }
       }
       current.setDate(current.getDate() + 1);
     }
@@ -107,13 +117,13 @@ export const Attendance = () => {
   const approvedLeavesDays = useMemo(() => {
     return myLeaves
       .filter(l => l.status === 'Approved' && l.type !== 'Work From Home')
-      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate, l.isHalfDay), 0);
   }, [myLeaves, holidays]);
 
   const approvedWfhDays = useMemo(() => {
     return myLeaves
       .filter(l => l.status === 'Approved' && l.type === 'Work From Home')
-      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate), 0);
+      .reduce((total, l) => total + calculateWorkingDays(l.startDate, l.endDate, l.isHalfDay), 0);
   }, [myLeaves, holidays]);
 
   const availableYears = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
@@ -222,13 +232,15 @@ export const Attendance = () => {
                 {days.map(d => {
                   const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                   const holiday = isHoliday(dateStr);
+                  const myLeave = myLeaves.some(l => l.status === 'Approved' && new Date(l.startDate) <= new Date(dateStr) && new Date(l.endDate) >= new Date(dateStr));
                   const weekend = isWeekend(new Date(year, month, d));
                   return (
                     <div 
                       key={d} 
-                      title={holiday ? getHolidayName(d) : ''}
+                      title={holiday ? getHolidayName(d) : myLeave ? 'My Leave' : ''}
                       className={`h-8 flex items-center justify-center rounded-lg text-sm font-medium cursor-default
-                        ${holiday ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200' : 
+                        ${holiday ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : 
+                          myLeave ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200' :
                           weekend ? 'text-slate-400 bg-slate-50' : 'text-slate-700 hover:bg-slate-100'}`}
                     >
                       {d}
@@ -237,7 +249,8 @@ export const Attendance = () => {
                 })}
               </div>
               <div className="mt-4 flex gap-4 text-xs text-slate-500 justify-center">
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-100 rounded border border-rose-200"></div> Holiday</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-100 rounded border border-emerald-200"></div> Holiday</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-100 rounded border border-blue-200"></div> My Leave</div>
                 <div className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-50 rounded border border-slate-200"></div> Weekend</div>
               </div>
             </div>
@@ -268,7 +281,7 @@ export const Attendance = () => {
                           <p className="font-bold text-slate-800">{leave.type}</p>
                           <p className="text-sm text-slate-500">
                             {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                            <span className="ml-2 text-xs text-slate-400">({calculateWorkingDays(leave.startDate, leave.endDate)} days)</span>
+                            <span className="ml-2 text-xs text-slate-400">({calculateWorkingDays(leave.startDate, leave.endDate, leave.isHalfDay)} days)</span>
                           </p>
                         </div>
                       </div>
@@ -306,30 +319,66 @@ export const Attendance = () => {
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={newLeave.startDate}
-                      onChange={e => setNewLeave({...newLeave, startDate: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={newLeave.endDate}
-                      onChange={e => setNewLeave({...newLeave, endDate: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
-                    />
-                  </div>
+                  {newLeave.isHalfDay ? (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={newLeave.startDate}
+                        onChange={e => setNewLeave({...newLeave, startDate: e.target.value, endDate: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={newLeave.startDate}
+                          onChange={e => setNewLeave({...newLeave, startDate: e.target.value})}
+                          className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={newLeave.endDate}
+                          onChange={e => setNewLeave({...newLeave, endDate: e.target.value})}
+                          className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
+                
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="isHalfDay"
+                    checked={newLeave.isHalfDay}
+                    onChange={e => {
+                      const isHalfDay = e.target.checked;
+                      setNewLeave(prev => ({
+                        ...prev,
+                        isHalfDay,
+                        endDate: isHalfDay ? prev.startDate : prev.endDate
+                      }));
+                    }}
+                    className="w-4 h-4 text-violet-600 rounded border-slate-300 focus:ring-violet-500"
+                  />
+                  <label htmlFor="isHalfDay" className="text-sm text-slate-700 font-medium">
+                    This is a half-day leave
+                  </label>
+                </div>
+
                 {newLeave.startDate && newLeave.endDate && (
                   <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    This request is for <span className="font-bold">{calculateWorkingDays(newLeave.startDate, newLeave.endDate)}</span> working days.
+                    This request is for <span className="font-bold">{calculateWorkingDays(newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}</span> working days.
                   </div>
                 )}
                 <div>
@@ -370,7 +419,7 @@ export const Attendance = () => {
                             <img src={requestor?.avatar} alt="" className="w-10 h-10 rounded-full" />
                             <div>
                               <p className="font-bold text-slate-800">{requestor?.name}</p>
-                              <p className="text-sm text-slate-500">{leave.type} • {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()} ({calculateWorkingDays(leave.startDate, leave.endDate)} days)</p>
+                              <p className="text-sm text-slate-500">{leave.type} • {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()} ({calculateWorkingDays(leave.startDate, leave.endDate, leave.isHalfDay)} days)</p>
                             </div>
                           </div>
                           <div className="flex gap-2">

@@ -59,6 +59,7 @@ export interface LeaveRequest {
   status: 'Pending' | 'Approved' | 'Rejected';
   reason: string;
   duration?: 'full' | 'first_half' | 'second_half';
+  isHalfDay?: boolean;
 }
 
 export interface Holiday {

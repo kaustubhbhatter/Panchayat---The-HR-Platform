@@ -11,23 +11,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : (exists(/databases/$(database)/documents/users/$(request.auth.token.email))
+           ? get(/databases/$(database)/documents/users/$(request.auth.token.email)).data
+           : null);
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.token.email == userId;
+      return isAuthenticated() && (request.auth.token.email == userId || request.auth.uid == userId);
     }
 
     function isAdmin() {
+      let userData = getUserData();
       return isAuthenticated() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
-         (get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'Admin' || 
-          get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'Sarpanch')) ||
+        (userData != null && (userData.role == 'Admin' || userData.role == 'Sarpanch')) ||
         (request.auth.token.email == "bhatter.kaustubh@gmail.com")
       );
     }
 
     function isManagerOf(userId) {
+      let managerId = get(/databases/$(database)/documents/users/$(userId)).data.managerId;
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.managerId == request.auth.token.email;
+             (managerId == request.auth.token.email || managerId == request.auth.uid);
     }
 
     function hasRequiredFields(fields) {
@@ -96,7 +104,8 @@ service cloud.firestore {
              data.endDate is string && data.endDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.type is string && data.type.size() > 0 && data.type.size() < 50 &&
              data.status in ['Pending', 'Approved', 'Rejected'] &&
-             data.reason is string && data.reason.size() <= 1000;
+             data.reason is string && data.reason.size() <= 1000 &&
+             (!('isHalfDay' in data) || data.isHalfDay is bool);
     }
 
     function isValidHoliday() {
@@ -148,8 +157,7 @@ service cloud.firestore {
              data.content is string && data.content.size() > 0 && data.content.size() < 2000 &&
              data.expiryDate is string && data.expiryDate.size() <= 50 &&
              data.createdAt is string && data.createdAt.size() <= 50 &&
-             data.createdBy is string && data.createdBy.size() <= 100 &&
-             data.createdBy == request.auth.token.email;
+             data.createdBy is string && data.createdBy.size() <= 100;
     }
 
     function isValidGuptGupshupPost() {
@@ -222,14 +230,14 @@ service cloud.firestore {
 
     match /reviewCycles/{cycleId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() && isValidReviewCycle() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Team Leader' && isValidReviewCycle());
-      allow update: if isAdmin() && isValidReviewCycle() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Team Leader' && isValidReviewCycle());
+      allow create: if isAdmin() || (isAuthenticated() && getUserData() != null && getUserData().role == 'Team Leader' && isValidReviewCycle());
+      allow update: if isAdmin() || (isAuthenticated() && getUserData() != null && getUserData().role == 'Team Leader' && isValidReviewCycle());
       allow delete: if isAdmin();
     }
 
     match /reviewSubmissions/{submissionId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidReviewSubmission() && (isAdmin() || request.resource.data.reviewerId == request.auth.token.email);
+      allow create: if isAuthenticated() && isValidReviewSubmission() && (isAdmin() || request.resource.data.reviewerId == request.auth.token.email || request.resource.data.reviewerId == request.auth.uid);
       allow update: if isAdmin() && isValidReviewSubmission(); // Allow admin to update if needed, though app says no
       allow delete: if isAdmin();
     }
@@ -243,7 +251,7 @@ service cloud.firestore {
 
     match /guptGupshupPosts/{postId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidGuptGupshupPost() && request.resource.data.authorId == request.auth.token.email;
+      allow create: if isAuthenticated() && isValidGuptGupshupPost() && (request.resource.data.authorId == request.auth.token.email || request.resource.data.authorId == request.auth.uid);
       allow update: if isAuthenticated() && isValidGuptGupshupPost(); // Allow any authenticated user to upvote/dismiss
       allow delete: if isAdmin();
     }
