@@ -16,6 +16,7 @@ export const Attendance = () => {
   // Apply leave state
   const [newLeave, setNewLeave] = useState({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
   const [showOptionalConfirm, setShowOptionalConfirm] = useState<{ show: boolean; holiday?: any }>({ show: false });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isManager = users.some(u => u.managerId === user?.id) || 
                     teams.some(t => t.managerIds?.includes(user?.id || '')) ||
@@ -76,21 +77,29 @@ export const Attendance = () => {
   };
 
   const submitLeaveRequest = async (type: string, reason: string, startDate: string, endDate: string, isHalfDay: boolean) => {
-    await addLeave({
-      userId: user!.id,
-      userName: user!.name,
-      managerId: user!.managerId || null,
-      startDate,
-      endDate,
-      type,
-      reason,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      isHalfDay
-    });
-    setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
-    setActiveTab('my-leaves');
-    setShowOptionalConfirm({ show: false });
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await addLeave({
+        userId: user!.id,
+        userName: user!.name,
+        managerId: user!.managerId || null,
+        startDate,
+        endDate,
+        type,
+        reason,
+        status: 'Pending',
+        createdAt: new Date().toISOString(),
+        isHalfDay
+      });
+      setNewLeave({ startDate: '', endDate: '', type: 'Vacation', reason: '', isHalfDay: false });
+      setActiveTab('my-leaves');
+      setShowOptionalConfirm({ show: false });
+    } catch (error) {
+      console.error("Error submitting leave request:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleApproveReject = async (id: string, status: 'Approved' | 'Rejected') => {
@@ -352,36 +361,6 @@ export const Attendance = () => {
             <div>
               <h3 className="text-lg font-bold text-slate-800 mb-6">Apply for Leave</h3>
               
-              {showOptionalConfirm.show && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                  <h4 className="font-bold text-amber-800 mb-2">Optional Holiday Detected</h4>
-                  <p className="text-sm text-amber-700 mb-4">
-                    The date you selected coincides with the optional holiday: <span className="font-bold">{showOptionalConfirm.holiday?.name}</span>. 
-                    Would you like to mark this as your optional holiday? This will not be deducted from your leave balance.
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => submitLeaveRequest(`Optional Holiday - ${showOptionalConfirm.holiday?.name}`, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}
-                      className="px-4 py-2 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors"
-                    >
-                      Yes, use Optional Holiday
-                    </button>
-                    <button
-                      onClick={() => submitLeaveRequest(newLeave.type, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}
-                      className="px-4 py-2 bg-white border border-amber-200 text-amber-700 text-sm font-bold rounded-xl hover:bg-amber-50 transition-colors"
-                    >
-                      No, use regular {newLeave.type}
-                    </button>
-                    <button
-                      onClick={() => setShowOptionalConfirm({ show: false })}
-                      className="px-4 py-2 text-stone-400 text-sm font-medium hover:text-stone-600"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
               <form onSubmit={handleApply} className="space-y-4 max-w-md">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Leave Type</label>
@@ -470,12 +449,50 @@ export const Attendance = () => {
                     rows={3}
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-violet-600 text-white font-medium rounded-xl hover:bg-violet-700 transition-colors"
-                >
-                  Submit Request
-                </button>
+                {showOptionalConfirm.show && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4">
+                    <h4 className="font-bold text-amber-800 mb-2 text-sm">Optional Holiday Detected</h4>
+                    <p className="text-xs text-amber-700 mb-4">
+                      The date you selected coincides with the optional holiday: <span className="font-bold">{showOptionalConfirm.holiday?.name}</span>. 
+                      Would you like to mark this as your optional holiday? This will not be deducted from your leave balance.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => submitLeaveRequest(`Optional Holiday - ${showOptionalConfirm.holiday?.name}`, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}
+                        className="w-full py-2 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors disabled:opacity-50"
+                      >
+                        {isSubmitting ? 'Submitting...' : 'Yes, use Optional Holiday'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => submitLeaveRequest(newLeave.type, newLeave.reason, newLeave.startDate, newLeave.endDate, newLeave.isHalfDay)}
+                        className="w-full py-2 bg-white border border-amber-200 text-amber-700 text-xs font-bold rounded-xl hover:bg-amber-50 transition-colors disabled:opacity-50"
+                      >
+                        {isSubmitting ? 'Submitting...' : `No, use regular ${newLeave.type}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowOptionalConfirm({ show: false })}
+                        className="w-full py-1 text-stone-400 text-[10px] font-medium hover:text-stone-600"
+                      >
+                        Cancel and edit dates
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!showOptionalConfirm.show && (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-2.5 bg-violet-600 text-white font-medium rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                )}
               </form>
             </div>
           )}

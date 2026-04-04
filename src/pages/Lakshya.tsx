@@ -197,6 +197,13 @@ const Lakshya: React.FC = () => {
     return Math.round((totalProgress / krs.length) * 100);
   };
 
+  const formatKRValue = (value: number, kr?: KeyResult) => {
+    if (!kr?.unit) return value.toLocaleString();
+    const unit = kr.unit;
+    const position = kr.unitPosition || 'postfix';
+    return position === 'prefix' ? `${unit}${value.toLocaleString()}` : `${value.toLocaleString()} ${unit}`;
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
@@ -362,7 +369,7 @@ const Lakshya: React.FC = () => {
                                   
                                   <div className="text-right">
                                     <div className="text-xs font-black text-stone-800">
-                                      {kr.unit}{kr.currentValue.toLocaleString()} / {kr.unit}{kr.targetValue.toLocaleString()}
+                                      {formatKRValue(kr.currentValue, kr)} / {formatKRValue(kr.targetValue, kr)}
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
                                       <div className="w-24 h-1.5 bg-stone-100 rounded-full overflow-hidden">
@@ -759,7 +766,8 @@ const Lakshya: React.FC = () => {
                 targetValue: Number(formData.get('targetValue')),
                 currentValue: editingKR?.currentValue || 0,
                 status: editingKR?.status || 'On Track',
-                unit: formData.get('unit') as string,
+                unit: formData.get('unit') as string || '',
+                unitPosition: formData.get('unitPosition') as 'prefix' | 'postfix' || 'postfix',
                 createdAt: editingKR?.createdAt || new Date().toISOString(),
                 createdBy: editingKR?.createdBy || currentUser?.email || 'system'
               };
@@ -794,14 +802,23 @@ const Lakshya: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 mb-1">Unit</label>
-                  <input 
-                    name="unit" 
-                    required 
-                    defaultValue={editingKR?.unit}
-                    className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" 
-                    placeholder="$ or units" 
-                  />
+                  <label className="block text-sm font-bold text-stone-700 mb-1">Unit (Optional)</label>
+                  <div className="flex gap-2">
+                    <input 
+                      name="unit" 
+                      defaultValue={editingKR?.unit}
+                      className="flex-1 border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" 
+                      placeholder="$ or units" 
+                    />
+                    <select 
+                      name="unitPosition"
+                      defaultValue={editingKR?.unitPosition || 'postfix'}
+                      className="w-24 border border-stone-200 rounded-xl px-2 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs font-bold"
+                    >
+                      <option value="postfix">Post</option>
+                      <option value="prefix">Pre</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div>
@@ -870,7 +887,7 @@ const Lakshya: React.FC = () => {
               }} className="p-8 space-y-6 bg-stone-50/30 border-b border-stone-100">
                 <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <label className="block text-sm font-bold text-stone-700 mb-2">Progress ({keyResults.find(k => k.id === selectedKRId)?.unit || '$'}):</label>
+                    <label className="block text-sm font-bold text-stone-700 mb-2">Progress ({keyResults.find(k => k.id === selectedKRId)?.unit || 'Value'}):</label>
                     <input 
                       name="value" 
                       type="number" 
@@ -878,7 +895,7 @@ const Lakshya: React.FC = () => {
                       defaultValue={keyResults.find(k => k.id === selectedKRId)?.currentValue}
                       className="w-full border border-stone-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-white font-bold text-stone-800" 
                     />
-                    <p className="text-[10px] text-stone-400 mt-1 font-bold">0 → {keyResults.find(k => k.id === selectedKRId)?.targetValue.toLocaleString()}</p>
+                    <p className="text-[10px] text-stone-400 mt-1 font-bold">0 → {formatKRValue(keyResults.find(k => k.id === selectedKRId)?.targetValue || 0, keyResults.find(k => k.id === selectedKRId))}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-stone-700 mb-2">Current Status:</label>
@@ -962,7 +979,7 @@ const Lakshya: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-black text-stone-800">Value: {keyResults.find(k => k.id === selectedKRId)?.unit}{checkIn.value.toLocaleString()}</span>
+                      <span className="text-xs font-black text-stone-800">Value: {formatKRValue(checkIn.value, keyResults.find(k => k.id === selectedKRId))}</span>
                     </div>
                     {checkIn.comment && (
                       <div className="text-sm text-stone-600 font-medium bg-stone-50 p-3 rounded-xl border border-stone-100 prose prose-sm max-w-none">

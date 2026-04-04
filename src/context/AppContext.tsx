@@ -139,7 +139,8 @@ export interface KeyResult {
   targetValue: number;
   currentValue: number;
   status: 'On Track' | 'Behind' | 'At Risk';
-  unit: string;
+  unit?: string;
+  unitPosition?: 'prefix' | 'postfix';
   createdAt: string;
   createdBy: string;
 }
@@ -459,10 +460,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await api.addKRCheckIn(ci);
     const kr = keyResults.find(k => k.id === ci.krId);
     if (kr && kr.ownerId !== user?.id) {
+      const formattedValue = kr.unit 
+        ? (kr.unitPosition === 'prefix' ? `${kr.unit}${ci.value.toLocaleString()}` : `${ci.value.toLocaleString()} ${kr.unit}`)
+        : ci.value.toLocaleString();
       await addNotification({
         userId: kr.ownerId,
         title: 'KR Updated',
-        message: `Your KR "${kr.title}" has been updated to ${ci.value}${kr.unit}`,
+        message: `Your KR "${kr.title}" has been updated to ${formattedValue}`,
         type: 'info',
         link: '/lakshya'
       });
