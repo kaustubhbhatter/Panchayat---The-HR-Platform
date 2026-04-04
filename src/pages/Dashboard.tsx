@@ -103,7 +103,7 @@ export const Drishyam = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-stone-800 tracking-tight">Drishyam: Welcome back, {user?.name.split(' ')[0]}! 👋</h1>
+        <h1 className="text-3xl font-black text-stone-800 tracking-tight">Welcome back, {user?.name.split(' ')[0]}! 👋</h1>
         <p className="text-stone-500 mt-1 font-medium">Here's what's happening in your Panchayat today.</p>
       </div>
 
